@@ -1,0 +1,13 @@
+# PyTorch & Torchvision (Installed with CUDA 12.6 from pytorch.org wheel repository)
+# To install: pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu126
+torch>=2.14.0
+torchvision>=0.29.0
+torchaudio>=2.11.0
+
+# Backend Web Framework & Server
+fastapi>=0.147.0
+uvicorn>=0.54.0
+python-multipart>=0.0.32
+
+# Image Processing (included with torchvision/pillow)
+pillow>=12.0.0
