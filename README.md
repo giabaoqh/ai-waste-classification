@@ -18,13 +18,33 @@ Dự án nhằm mục tiêu phát triển hệ thống hỗ trợ người dùng
 
 ---
 
-## 👥 Thành viên nhóm (Team Members)
+## 👥 Thành viên nhóm & Phân công trách nhiệm (Team Members & Roles)
 
-| Thành viên | Vai trò dự kiến | Nhánh làm việc chính |
-| :--- | :--- | :--- |
-| **Bảo** (Leader) | Phụ trách chung / Tích hợp | `feature/bao` hoặc tính năng được phân công |
-| **Huy** | Thành viên phát triển | `feature/...` theo phân công |
-| **Minh** | Thành viên phát triển | `feature/...` theo phân công |
+| Thành viên | Vai trò chính | Nhiệm vụ trọng tâm | Nhánh làm việc |
+| :--- | :--- | :--- | :--- |
+| **Huy** | **Team Leader** | Điều phối dự án, review PR, quản lý tích hợp và nhánh `main` | `main` |
+| **Bảo** | **AI Model & Dataset** | Thẩm định dataset RealWaste, tiền xử lý, huấn luyện và đánh giá mô hình AI | `feature/ai-model` |
+| **Minh** | **Backend, Frontend & Integration** | Phát triển API FastAPI, giao diện React/Vite và tích hợp end-to-end | `feature/backend-api`, `feature/frontend` |
+
+### Chi tiết trách nhiệm:
+
+#### 1. Huy — Team Leader
+- Điều phối nhóm và theo dõi tiến độ tổng thể của dự án.
+- Phân chia nhiệm vụ và điều phối tích hợp giữa mô hình AI, backend và frontend.
+- Review pull requests, giải quyết xung đột tích hợp và giám sát, quản lý nhánh `main`.
+- Điều phối kiểm thử toàn hệ thống và tổng hợp kết quả bàn giao của đồ án.
+
+#### 2. Bảo — AI Model & Dataset Member
+- Thẩm định và chuẩn bị tập dữ liệu RealWaste.
+- Thực hiện tiền xử lý và phân chia tập dữ liệu (train/validation/test) đảm bảo tính tái lập.
+- Huấn luyện, đánh giá và tối ưu hóa mô hình phân loại rác thải.
+- Đóng gói và bàn giao mô hình đã huấn luyện kèm các chỉ số đánh giá (metrics) để tích hợp vào backend.
+
+#### 3. Minh — Backend, Frontend & Integration Member
+- Phát triển và duy trì REST API backend bằng FastAPI.
+- Xây dựng giao diện người dùng React/Vite.
+- Tích hợp tính năng tải ảnh, kết quả dự đoán, điểm tin cậy (confidence score) và các khuyến nghị xử lý/tái chế.
+- Kiểm thử luồng hoạt động đầu-cuối (end-to-end) của toàn bộ ứng dụng.
 
 ---
 
@@ -48,11 +68,68 @@ Dự án nhằm mục tiêu phát triển hệ thống hỗ trợ người dùng
 
 ## 📊 Trạng thái hiện tại (Current Status)
 
-- [x] Khởi tạo cấu trúc repository và tài liệu thiết kế.
-- [ ] Thiết lập môi trường ảo Python (`.venv`) và PyTorch với hỗ trợ GPU CUDA *(Chưa triển khai)*.
-- [ ] Xây dựng khung giao diện React + Vite *(Chưa triển khai)*.
-- [ ] Xây dựng khung API FastAPI *(Chưa triển khai)*.
-- [ ] Thu thập dữ liệu và huấn luyện mô hình phân loại rác *(Chưa triển khai)*.
+- [x] Khởi tạo cấu trúc repository và tài liệu thiết kế hệ thống.
+- [x] Thiết lập môi trường ảo Python (`.venv`) và PyTorch với hỗ trợ GPU CUDA.
+- [x] Chuẩn hóa và phân chia tập dữ liệu RealWaste (3,327 train / 712 val / 713 test).
+- [x] Huấn luyện mô hình MobileNetV3-Large trên GPU RTX 3050.
+- [x] Xây dựng REST API bằng FastAPI, nạp checkpoint và suy luận thời gian thực (`POST /api/predict`).
+- [x] Xây dựng giao diện người dùng React + Vite hiển thị phân loại, phân bố xác suất Softmax và gợi ý tái chế tiếng Việt.
+- [x] Kiểm thử tích hợp tự động và kiểm thử đầu-cuối (End-to-End).
+
+---
+
+## 🚀 Hướng dẫn khởi chạy hệ thống (Quickstart Guide)
+
+### 1. Yêu cầu tiên quyết (Prerequisites)
+- **Python**: Phiên bản 3.10 trở lên (khuyến nghị kèm NVIDIA GPU hỗ trợ CUDA).
+- **Node.js**: Phiên bản 18 trở lên (kèm `npm`).
+- **Trọng số mô hình (Checkpoint)**: Tệp `mobilenetv3_best.pth` phải được đặt tại:
+  ```text
+  checkpoints/mobilenetv3_best.pth
+  ```
+
+### 2. Cài đặt phụ thuộc (Dependencies)
+- **Backend**:
+  ```powershell
+  python -m venv backend\.venv
+  backend\.venv\Scripts\pip install -r backend\requirements.txt
+  ```
+- **Frontend**:
+  ```powershell
+  cd frontend
+  npm install
+  cd ..
+  ```
+
+### 3. Khởi chạy ứng dụng (Run Application)
+- **Khởi động Backend (FastAPI)**:
+  ```powershell
+  backend\.venv\Scripts\python.exe -m uvicorn backend.app.main:app --host 127.0.0.1 --port 8000 --reload
+  ```
+  - Kiểm tra trạng thái: `GET http://127.0.0.1:8000/api/health`
+  - Swagger API Docs: `http://127.0.0.1:8000/docs`
+
+- **Khởi động Frontend (React + Vite)**:
+  ```powershell
+  cd frontend
+  npm run dev
+  ```
+  - Truy cập giao diện tại: `http://127.0.0.1:5173`
+
+### 4. Chạy kiểm thử tự động (Running Tests)
+Chạy bộ kiểm thử tích hợp mô hình và API:
+```powershell
+backend\.venv\Scripts\python.exe scratch\test_model_integration.py
+```
+
+---
+
+## ⚠️ Giới hạn hiện tại của mô hình (Model Limitations)
+
+1. **Phạm vi phân loại**: Mô hình được huấn luyện để phân loại đúng 6 nhóm rác mục tiêu (`plastic`, `paper`, `metal`, `glass`, `organic`, `other`).
+2. **Không phân biệt chi tiết loại nhựa & mức độ nhiễm bẩn**: Mô hình không nhận diện cụ thể các phân nhóm polymer nhựa chi tiết (như PET, HDPE, PP, PVC) và không đánh giá định lượng độ nhiễm bẩn dầu mỡ/hóa chất của vật thể.
+3. **Đặc tính nhóm 'Rác khác' (Other)**: Đây là danh mục tồn dư tổng hợp cho các vật thể hỗn hợp, cao su, vải vụn hoặc rác thải không thuộc 5 nhóm phân loại chuẩn. Khi gặp nhóm này, hệ thống khuyến cáo người dùng phân loại thủ công.
+4. **Độ tin cậy & Quy định địa phương**: Điểm tin cậy (confidence score) thể hiện xác suất toán học qua hàm Softmax của mô hình AI, không phải cam kết tuyệt đối. Khuyến nghị xử lý rác mang tính tham khảo; người dùng cần tuân thủ các quy chuẩn và màu sắc thùng rác theo quy định tại từng địa phương.
 
 ---
 
@@ -64,3 +141,5 @@ Chi tiết thiết kế và kế hoạch được lưu trữ trong thư mục `d
 - [TASKS.md](docs/TASKS.md): Danh sách công việc và phân công nhiệm vụ.
 - [PROGRESS.md](docs/PROGRESS.md): Nhật ký tiến độ thực hiện.
 - [DECISIONS.md](docs/DECISIONS.md): Các quyết định kiến trúc và công nghệ (ADR).
+- [DATASET_RESEARCH.md](docs/DATASET_RESEARCH.md): Nghiên cứu và khảo sát tập dữ liệu rác thải.
+
