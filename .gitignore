@@ -1,0 +1,109 @@
+# ==============================================================================
+# Git Ignore Configuration
+# Project: AI-Based Waste Recognition and Recycling Recommendation System
+# Stack: Python (FastAPI, PyTorch) + Node.js (React, Vite)
+# ==============================================================================
+
+# --- Python & Virtual Environments ---
+.venv/
+venv/
+env/
+ENV/
+env.bak/
+venv.bak/
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+.pytest_cache/
+.coverage
+htmlcov/
+.mypy_cache/
+.ruff_cache/
+
+# --- Node.js & Frontend Build (React + Vite) ---
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+frontend/dist/
+frontend/dist-ssr/
+dist/
+dist-ssr/
+*.local
+
+# --- Environment Variables, Credentials & Secrets (CRITICAL: Public Repo) ---
+.env
+.env.*
+!.env.example
+secrets.json
+credentials.json
+*.pem
+*.key
+*.cert
+*.pfx
+*.p12
+
+# --- AI/ML Model Weights, Datasets & Training Artifacts ---
+# Model weights must NOT be committed to git (GitHub 100MB limit & reproducibility)
+*.pt
+*.pth
+*.onnx
+*.tflite
+*.h5
+*.hdf5
+*.ckpt
+*.safetensors
+*.bin
+weights/
+checkpoints/
+runs/
+wandb/
+
+# Datasets and raw media
+data/
+dataset/
+datasets/
+raw_data/
+processed_data/
+uploads/
+*.tar.gz
+*.zip
+*.rar
+*.7z
+
+# --- Logs, Temp & OS Files ---
+logs/
+*.log
+tmp/
+temp/
+.DS_Store
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# --- IDE & Editor Settings ---
+.idea/
+*.sublime-project
+*.sublime-workspace
+.vscode/*
+!.vscode/settings.json
+!.vscode/extensions.json
