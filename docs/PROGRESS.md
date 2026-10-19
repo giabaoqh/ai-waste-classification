@@ -26,14 +26,19 @@ Nhật ký ghi nhận tiến độ thực tế của dự án. Mọi mục đán
   - `docs/TASKS.md`: Bảng phân chia công việc theo 3 nhánh tính năng.
   - `docs/PROGRESS.md`: Nhật ký tiến độ hiện tại.
   - `docs/DECISIONS.md`: Ghi nhận các quyết định công nghệ quan trọng (ADR).
+- [x] Khởi tạo Git cục bộ (`git init -b main`) và kết nối remote `origin` (`https://github.com/giabaoqh/ai-waste-classification.git`).
+- [x] Tạo initial commit (`7bb1647`) và đẩy thành công nhánh `main` lên GitHub.
+- [x] Tạo 3 nhánh tính năng cục bộ từ `main`:
+  - `feature/frontend`
+  - `feature/ai-model`
+  - `feature/backend-api`
+  *(Các nhánh tính năng được lưu cục bộ, chưa đẩy lên remote theo đúng yêu cầu)*.
 
 ---
 
 ## ⏳ Các bước tiếp theo cần triển khai (Next Steps)
-1. Khởi tạo Git cục bộ (`git init -b main`), thêm remote `origin` và tạo commit đầu tiên.
-2. Đẩy nhánh `main` lên GitHub repository `ai-waste-classification`.
-3. Tạo 3 nhánh cục bộ từ `main`:
-   - `feature/frontend`
-   - `feature/ai-model`
-   - `feature/backend-api`
-4. Chờ phê duyệt trước khi thiết lập môi trường Python (`.venv`) và cài đặt PyTorch CUDA.
+1. Huy chấp nhận lời mời (accept invitation) để có quyền truy cập repo trên GitHub.
+2. Chờ phê duyệt của nhóm trước khi tiến hành Phase tiếp theo:
+   - Tạo môi trường ảo Python (`.venv`) bằng Python 3.13.16.
+   - Cài đặt PyTorch với hỗ trợ NVIDIA CUDA (RTX 3050 Laptop GPU).
+
