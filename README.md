@@ -8,13 +8,39 @@
 
 Dự án nhằm mục tiêu phát triển hệ thống hỗ trợ người dùng phân loại rác thải sinh hoạt thông qua hình ảnh. Hệ thống sẽ nhận diện loại rác, đánh giá độ tin cậy (confidence score) và đưa ra các hướng dẫn xử lý hoặc tái chế phù hợp theo tiêu chuẩn bảo vệ môi trường.
 
-### Nhóm danh mục rác dự kiến phân loại (Planned Categories):
-1. **Plastic** (Nhựa)
-2. **Paper** (Giấy)
-3. **Metal** (Kim loại)
-4. **Glass** (Thủy tinh)
-5. **Organic** (Rác hữu cơ)
-6. **Other** (Rác thải khác / rác nguy hại)
+## 🌟 Tính Năng Nổi Bật Của Hệ Thống (Key Features)
+
+### 1. Nhận Diện Rác Thải Đa Phương Thức (Multi-modal Input)
+- **Tải ảnh từ máy (File Upload)**: Kéo thả trực quan, kiểm tra tự động định dạng và dung lượng tối đa 10 MB.
+- **Chụp ảnh trực tiếp (Live Webcam / Camera)**: Tích hợp trực tiếp trên trình duyệt, phù hợp cho điện thoại và máy tính bảng.
+- **Nhập liên kết ảnh (Predict by Image URL)**: Phân loại trực tiếp từ link ảnh công khai không cần tải về máy.
+- **Phân loại hàng loạt (Batch Processing)**: Xử lý đồng thời tối đa 10 ảnh trong 1 lần gửi, xem kết quả theo danh sách.
+
+### 2. Trực Quan Hóa Trí Tuệ Nhân Tạo (Explainable AI - Grad-CAM)
+- Tích hợp phương pháp **Grad-CAM (Gradient-weighted Class Activation Mapping)** trên tầng tích chập cuối của `MobileNetV3-Large`.
+- Cho phép người dùng và chuyên gia quan sát **Bản đồ nhiệt kích hoạt (Heatmap Overlay)**: Vùng màu Đỏ - Vàng thể hiện chính xác vị trí và đặc trưng mà mạng nơ-ron tập trung để đưa ra quyết định phân loại, loại bỏ hoàn toàn tính chất "hộp đen" của AI.
+
+### 3. Vòng Lặp Phản Hồi Người Dùng (User Feedback Loop)
+- Người dùng có thể đánh giá kết quả: **Chính xác (👍)** hoặc **Báo sai (👎)**.
+- Khi báo sai, người dùng có thể chọn nhóm rác thực tế và nhập ghi chú. Dữ liệu này được lưu trữ để làm giàu tập dữ liệu tái huấn luyện mô hình (Active Learning).
+
+### 4. Quản Lý & Xuất Dữ Liệu (History & CSV Export)
+- Lưu trữ lịch sử phân loại trên SQLite (chỉ lưu metadata, không lưu nhị phân ảnh để bảo mật riêng tư).
+- Hỗ trợ phân trang, lọc theo thời gian và nhóm rác.
+- **Xuất báo cáo CSV chuẩn UTF-8 BOM** hiển thị tiếng Việt hoàn hảo trên Microsoft Excel.
+
+### 5. Bảng Điều Khiển Đánh Giá & Hiệu Suất Mô Hình (Model Evaluation Dashboard)
+- Hiển thị **Ma trận nhầm lẫn (Confusion Matrix 6x6)** của mô hình trên 713 ảnh tập kiểm thử độc lập.
+- Chỉ số chi tiết từng lớp: **Precision, Recall, F1-Score, Support** (Độ chính xác tổng đạt **95.98%**).
+- Đồ thị tiến trình huấn luyện qua 10 Epochs (Loss & Accuracy trên tập Train và Validation).
+
+### 6. Danh Bạ Trạm Thu Gom & Tái Chế Xanh (Recycling Directory)
+- Cung cấp danh mục các điểm thu gom rác tái chế và rác nguy hại (pin cũ, thiết bị điện tử, vỏ hộp giấy, nhựa) tại các đô thị lớn: **Hà Nội, TP. Hồ Chí Minh, Đà Nẵng, Cần Thơ**.
+- Bộ lọc theo thành phố và loại vật liệu, hiển thị giờ mở cửa và số điện thoại liên hệ.
+
+### 7. Trải Nghiệm Người Dùng Hiện Đại (UX & Dark Mode)
+- Hỗ trợ chuyển đổi giao diện **Sáng / Tối (Dark / Light Mode)** mượt mà, lưu trạng thái tự động.
+- Giao diện đáp ứng (Responsive) tối ưu cho cả Desktop, Tablet và Mobile.
 
 ---
 

@@ -1,21 +1,30 @@
 # ==============================================================================
 # Git Ignore Configuration
 # Project: AI-Based Waste Recognition and Recycling Recommendation System
-# Stack: Python (FastAPI, PyTorch) + Node.js (React, Vite)
+# Stack: Python (FastAPI, PyTorch) + Node.js (React, Vite) + SQLite
 # ==============================================================================
 
-# --- Python & Virtual Environments ---
+# ------------------------------------------------------------------------------
+# 1. Python & Virtual Environments
+# ------------------------------------------------------------------------------
 .venv/
 venv/
 env/
 ENV/
+*.venv/
 env.bak/
 venv.bak/
+backend/.venv/
+backend/venv/
+
+# Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
 *$py.class
 *.so
 .Python
+
+# Distribution / packaging artifacts
 build/
 develop-eggs/
 dist/
@@ -28,17 +37,31 @@ parts/
 sdist/
 var/
 wheels/
+share/python-wheels/
 *.egg-info/
 .installed.cfg
 *.egg
+MANIFEST
+
+# Unit test, coverage & linter caches
 .pytest_cache/
 .coverage
+.coverage.*
 htmlcov/
 .mypy_cache/
 .ruff_cache/
+.tox/
+.nox/
+nosetests.xml
+coverage.xml
+*.cover
+*.py,cover
 
-# --- Node.js & Frontend Build (React + Vite) ---
+# ------------------------------------------------------------------------------
+# 2. Node.js & Frontend Build (React + Vite)
+# ------------------------------------------------------------------------------
 node_modules/
+frontend/node_modules/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
@@ -49,21 +72,34 @@ frontend/dist-ssr/
 dist/
 dist-ssr/
 *.local
+.npm/
+.vite/
+frontend/.vite/
+.eslintcache
+.parcel-cache/
 
-# --- Environment Variables, Credentials & Secrets (CRITICAL: Public Repo) ---
+# ------------------------------------------------------------------------------
+# 3. Environment Variables, Credentials & Secrets (CRITICAL: Public Repo)
+# ------------------------------------------------------------------------------
 .env
 .env.*
+.env.local
+.env.*.local
 !.env.example
+!**/.env.example
 secrets.json
 credentials.json
 *.pem
 *.key
 *.cert
+*.crt
 *.pfx
 *.p12
 
-# --- AI/ML Model Weights, Datasets & Training Artifacts ---
-# Model weights must NOT be committed to git (GitHub 100MB limit & reproducibility)
+# ------------------------------------------------------------------------------
+# 4. AI/ML Model Weights & Training Checkpoints
+# ------------------------------------------------------------------------------
+# Model weights must NOT be committed to git (large binaries, GitHub 100MB limit)
 *.pt
 *.pth
 *.onnx
@@ -73,37 +109,92 @@ credentials.json
 *.ckpt
 *.safetensors
 *.bin
+*.pt.*
+*.pth.*
 weights/
-checkpoints/
 runs/
 wandb/
 
-# Datasets and raw media
+# Checkpoint binary weights ignored; preserve metadata & evaluation metrics
+checkpoints/*.pt
+checkpoints/*.pth
+checkpoints/*.onnx
+checkpoints/*.ckpt
+checkpoints/*.safetensors
+checkpoints/*.bin
+checkpoints/*.h5
+checkpoints/*.tflite
+!checkpoints/*.json
+!checkpoints/README.md
+!checkpoints/.gitkeep
+
+# ------------------------------------------------------------------------------
+# 5. Datasets, Training Images & Extracted Media
+# ------------------------------------------------------------------------------
+# Raw and processed datasets must NOT be committed to git
 data/
 dataset/
 datasets/
 raw_data/
 processed_data/
+RealWaste/
+realwaste/
+Garbage classification/
+garbage_classification/
+archive/
 uploads/
+
+# Archive files
 *.tar.gz
+*.tar
+*.gz
+*.bz2
 *.zip
 *.rar
 *.7z
 
-# --- Logs, Temp & OS Files ---
+# ------------------------------------------------------------------------------
+# 6. SQLite & Local Databases
+# ------------------------------------------------------------------------------
+# Local user prediction history and database files
+*.db
+*.db-journal
+*.sqlite
+*.sqlite3
+*.db-shm
+*.db-wal
+
+# ------------------------------------------------------------------------------
+# 7. Logs & Temporary Files
+# ------------------------------------------------------------------------------
 logs/
 *.log
 tmp/
 temp/
+
+# ------------------------------------------------------------------------------
+# 8. Operating System Artifacts
+# ------------------------------------------------------------------------------
 .DS_Store
-Thumbs.db
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
 ehthumbs.db
+ehthumbs_vista.db
+Thumbs.db
+desktop.ini
 Desktop.ini
 
-# --- IDE & Editor Settings ---
+# ------------------------------------------------------------------------------
+# 9. IDE & Editor Settings
+# ------------------------------------------------------------------------------
 .idea/
 *.sublime-project
 *.sublime-workspace
 .vscode/*
 !.vscode/settings.json
 !.vscode/extensions.json
+*.swp
+*.swo
+*~
