@@ -1,3 +1,4 @@
+from backend.app.knowledge_base import RECOMMENDATIONS_FROM_KB as RECOMMENDATIONS, get_disposal_guidance
 import csv
 import io
 import json
@@ -34,6 +35,8 @@ from backend.app.database import (
     get_error_cases_for_export
 )
 from backend.app.gradcam import generate_gradcam_overlay
+from backend.app.non_waste_detector import detect_non_waste_or_ood
+from backend.app.detector import detect_and_classify_multiple_objects
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s")
 logger = logging.getLogger("waste_recognition_backend")
@@ -44,223 +47,17 @@ ALLOWED_FORMATS = {"JPEG", "JPG", "PNG", "WEBP"}
 IMAGENET_MEAN = [0.485, 0.456, 0.406]
 IMAGENET_STD = [0.229, 0.224, 0.225]
 
-# Vietnamese Waste Disposal, Recycling & Environmental Analysis
-RECOMMENDATIONS: Dict[str, Dict[str, Any]] = {
-    "plastic": {
-        "label_vi": "Nhựa (Plastic)",
-        "bin": "Thùng rác tái chế (Màu vàng/trắng)",
-        "bin_color": "#eab308",
-        "guidance": "Tráng sạch cặn chất lỏng hoặc dầu mỡ thừa, bóp xẹp chai/hộp nhựa để tiết kiệm thể tích trước khi bỏ vào thùng rác tái chế. Tháo rời nắp và nhãn mác nếu có thể.",
-        "tips": [
-            "Đổ hết nước và chất lỏng còn đọng lại bên trong",
-            "Tráng sơ qua nước sạch nếu còn dính dầu mỡ/thức ăn",
-            "Bóp xẹp chai hoặc cán phẳng hộp để giảm 70% thể tích chứa",
-            "Phân loại riêng nắp chai (nhựa HDPE) và thân chai (nhựa PET)"
-        ],
-        "combustibility": {
-            "is_combustible": True,
-            "status": "Cháy được (Cảnh báo khí độc hại)",
-            "badge_color": "#ea580c",
-            "analysis": "Nhựa có nhiệt trị cao (tương đương dầu mỏ) nhưng TUYỆT ĐỐI KHÔNG tự đốt hở tại nhà vì sinh ra khí cực độc như Dioxin, Furan, khí Clo và muội than đen gây hại hệ hô hấp. Chỉ được thiêu đốt trong các nhà máy điện rác (WtE - Waste to Energy) có hệ thống lọc khí thải tiêu chuẩn.",
-            "warning": "Không đốt hở ngoài trời. Khí thải Dioxin từ nhựa cháy có nguy cơ gây ung thư."
-        },
-        "recyclability": {
-            "level": "Tái chế phổ biến / Giá trị kinh tế cao",
-            "difficulty_score": "Dễ",
-            "badge_color": "#16a34a",
-            "analysis": "Nhựa nhiệt dẻo như PET (chai nước) và HDPE (hộp sữa, can xà phòng) rất dễ tái chế cơ học. Nhựa nhiều lớp (túi snack, màng bọc nilon mỏng) khó tái chế hơn và thường cần ép viên nhiên liệu.",
-            "economic_value": "Rất cao — Được các nhà máy tái sinh hạt nhựa thu mua liên tục."
-        },
-        "processing_steps": [
-            "1. Tại nguồn: Rửa sạch, để ráo và bóp xẹp vỏ chai.",
-            "2. Thu gom: Đưa về trạm ép kiện nhựa tập trung.",
-            "3. Nhà máy: Băm nhỏ thành mảnh vảy (flakes), giặt nhiệt tẩy keo và kéo hạt nhựa tái sinh."
-        ],
-        "environmental_impact": {
-            "decomposition_time": "450 - 500 năm trong tự nhiên",
-            "carbon_saving": "Tái chế 1 tấn nhựa tiết kiệm ~1.5 tấn CO2 so với sản xuất nhựa nguyên sinh."
-        }
-    },
-    "paper": {
-        "label_vi": "Giấy / Bìa carton (Paper)",
-        "bin": "Thùng rác tái chế (Màu vàng/trắng)",
-        "bin_color": "#3b82f6",
-        "guidance": "Giữ giấy khô ráo và sạch sẽ, gấp phẳng các thùng bìa carton. Nếu giấy bị dính dầu mỡ thức ăn hoặc ẩm ướt nặng, vui lòng bỏ vào thùng rác sinh hoạt thông thường.",
-        "tips": [
-            "Giữ giấy khô ráo, tránh để dính nước hoặc ẩm mốc",
-            "Gấp phẳng thùng carton để tiết kiệm diện tích thu gom",
-            "Loại bỏ băng dính dán trên hộp carton nếu có thể",
-            "Giấy thấm dầu, hộp giấy dính mỡ thức ăn phải bỏ rác sinh hoạt"
-        ],
-        "combustibility": {
-            "is_combustible": True,
-            "status": "Dễ bắt cháy (Nhiên liệu sinh khối RDF)",
-            "badge_color": "#f97316",
-            "analysis": "Giấy khô cực kỳ dễ bắt cháy, nhiệt độ bốc cháy thấp (~230°C). Giấy sạch nên ưu tiên tái chế bột giấy; giấy loại dơ không thể tái chế có thể dùng làm mồi lửa hoặc ép thành viên nhiên liệu đốt sinh khối công nghiệp.",
-            "warning": "Cần lưu trữ nơi khô ráo, tránh xa nguồn nhiệt để phòng ngừa hỏa hoạn."
-        },
-        "recyclability": {
-            "level": "Dễ tái chế cao",
-            "difficulty_score": "Dễ",
-            "badge_color": "#16a34a",
-            "analysis": "Sợi cellulose trong giấy có thể tái chế từ 5 đến 7 chu kỳ trước khi sợi bị đứt gãy quá ngắn. Giấy carton sóng có tỷ lệ thu hồi tái chế cao nhất.",
-            "economic_value": "Cao — Là nguồn nguyên liệu chính cho ngành bao bì carton."
-        },
-        "processing_steps": [
-            "1. Tại nguồn: Xếp phẳng, giữ khô ráo, bó thành kiện.",
-            "2. Thu gom: Vận chuyển đến các xưởng xeo giấy.",
-            "3. Nhà máy: Đánh bột thuỷ lực, tẩy mực, sàng lọc xơ sợi và xeo thành giấy bao bì mới."
-        ],
-        "environmental_impact": {
-            "decomposition_time": "2 - 6 tuần (trong điều kiện hiếu khí)",
-            "carbon_saving": "Tái chế 1 tấn giấy cứu sống ~17 cây xanh và tiết kiệm 4.000 kWh điện."
-        }
-    },
-    "metal": {
-        "label_vi": "Kim loại (Metal)",
-        "bin": "Thùng rác tái chế (Màu vàng/trắng)",
-        "bin_color": "#ef4444",
-        "guidance": "Đổ sạch phần thức ăn hoặc đồ uống còn lại bên trong lon/hộp kim loại; tráng sơ qua nước. Cẩn thận các cạnh sắc nhọn của nắp lon khi bỏ vào thùng rác tái chế.",
-        "tips": [
-            "Làm rỗng hoàn toàn nước ngọt/bia trong vỏ lon",
-            "Tráng sạch cặn thức ăn thừa trong hộp thiếc",
-            "Gập mép nắp sắc nhọn vào trong để đảm bảo an toàn cho nhân viên thu gom",
-            "Dẫm dẹp vỏ lon nhôm để giảm thể tích"
-        ],
-        "combustibility": {
-            "is_combustible": False,
-            "status": "Không thể cháy",
-            "badge_color": "#0284c7",
-            "analysis": "Kim loại (nhôm, sắt, thép, thiếc) là vật liệu vô cơ không cháy trong điều kiện sinh hoạt thông thường. Khi bị đưa vào lò đốt rác, kim loại không sinh nhiệt mà làm tiêu tốn năng lượng lò và sót lại dưới dạng xỉ đáy lò.",
-            "warning": "Vỏ bình xịt khí nén (aerosol) có nguy cơ phát nổ nếu đưa vào nguồn nhiệt."
-        },
-        "recyclability": {
-            "level": "Tái chế vô hạn lần (100% Recyclable)",
-            "difficulty_score": "Rất dễ",
-            "badge_color": "#10b981",
-            "analysis": "Kim loại có thể nấu chảy và tái chế tuần hoàn vô hạn lần mà không làm suy giảm tính chất cơ lý tính. Tái chế nhôm tiết kiệm đến 95% năng lượng so với luyện nhôm từ quặng bauxite.",
-            "economic_value": "Rất cao — Kim loại phế liệu luôn được săn đón và thu mua giá cao."
-        },
-        "processing_steps": [
-            "1. Tại nguồn: Rửa sạch cặn, làm dẹp lon nhôm.",
-            "2. Thu gom: Phân loại sắt từ bằng nam châm và tách nhôm bằng dòng điện xoáy (Eddy current).",
-            "3. Nhà máy: Nung chảy ở 660°C (nhôm) hoặc 1500°C (sắt thép) và đúc thành phôi kim loại."
-        ],
-        "environmental_impact": {
-            "decomposition_time": "200 - 500 năm đối với lon nhôm",
-            "carbon_saving": "Tái chế 1 tấn nhôm ngăn phát thải ~9 tấn khí nhà kính CO2."
-        }
-    },
-    "glass": {
-        "label_vi": "Thủy tinh (Glass)",
-        "bin": "Thùng rác tái chế / Trạm thu gom thủy tinh",
-        "bin_color": "#06b6d4",
-        "guidance": "Làm rỗng và tráng sạch chai lọ thủy tinh. Tháo bỏ nắp nhựa hoặc nắp kim loại để phân loại riêng. Nếu là mảnh vỡ thủy tinh, bọc kỹ bằng giấy báo hoặc bìa cứng để đảm bảo an toàn.",
-        "tips": [
-            "Tráng sạch cặn bẩn hoặc dầu giấm trong chai lọ",
-            "Tháo nắp nhựa hoặc nắp kim loại để phân loại vào nhóm tương ứng",
-            "Nếu bị vỡ: Gom mảnh vỡ và bọc chặt bằng giấy báo hoặc hộp các-tông",
-            "Ghi chú chữ 'Thủy tinh vỡ nguy hiểm' bên ngoài bọc"
-        ],
-        "combustibility": {
-            "is_combustible": False,
-            "status": "Không thể cháy (Nhiệt độ nóng chảy cực cao)",
-            "badge_color": "#0284c7",
-            "analysis": "Thủy tinh có thành phần chủ yếu là Silicat (SiO2), trơ hoàn toàn với lửa và không bắt cháy. Thủy tinh nóng chảy ở nhiệt độ rất cao (1.400 - 1.600°C), vượt xa nhiệt độ lò thiêu hủy rác sinh hoạt thông thường.",
-            "warning": "Không đưa thủy tinh vào lò đốt rác vì làm hư hại ghi lò."
-        },
-        "recyclability": {
-            "level": "Tái chế vô hạn lần",
-            "difficulty_score": "Dễ",
-            "badge_color": "#10b981",
-            "analysis": "Thủy tinh tinh khiết có thể tái sinh vô hạn lần mà không giảm chất lượng hoặc độ trong suốt. Tuy nhiên cần phân loại kỹ theo màu sắc (thủy tinh trắng, xanh, nâu) và không lẫn gốm sứ/pha lê.",
-            "economic_value": "Trung bình đến Cao — Phù hợp mô hình tái sử dụng vỏ chai (Refill)."
-        },
-        "processing_steps": [
-            "1. Tại nguồn: Rửa sạch, để khô ráo, giữ nguyên vẹn vỏ chai.",
-            "2. Thu gom: Phân loại theo 3 màu: Trắng trong, Xanh lá cây, Nâu hổ phách.",
-            "3. Nhà máy: Đập vụn thành miểng (cullet), trộn cát thạch anh và nấu chảy đúc chai mới."
-        ],
-        "environmental_impact": {
-            "decomposition_time": "Hơn 1.000.000 năm (Gần như không bao giờ phân hủy tự nhiên)",
-            "carbon_saving": "Dùng 1 tấn miểng thủy tinh tái chế giảm phát thải 315 kg CO2."
-        }
-    },
-    "organic": {
-        "label_vi": "Rác hữu cơ (Organic)",
-        "bin": "Thùng rác hữu cơ (Màu xanh lá)",
-        "bin_color": "#22c55e",
-        "guidance": "Bao gồm thức ăn thừa, cuống rau củ quả, bã trà, bã cà phê và lá cây. Thích hợp dùng làm phân bón hữu cơ ủ (compost) hoặc bỏ vào thùng rác hữu cơ dễ phân hủy sinh học.",
-        "tips": [
-            "Tách hoàn toàn khỏi bao bì nilon, tăm tre, đồ nhựa dùng một lần",
-            "Gạn hết nước canh hoặc nước sốt thừa để giảm mùi hôi và chảy nước",
-            "Tự ủ phân compost tại nhà nếu có sân vườn hoặc thùng ủ vi sinh",
-            "Bỏ vào thùng rác hữu cơ màu xanh lá"
-        ],
-        "combustibility": {
-            "is_combustible": False,
-            "status": "Khó cháy (Độ ẩm cao 70% - 85%)",
-            "badge_color": "#16a34a",
-            "analysis": "Rác thực phẩm và phụ phẩm hữu cơ chứa lượng nước rất lớn (70-85%). Đốt rác hữu cơ tiêu tốn nhiệt lượng của lò thiêu đốt, hạ thấp nhiệt độ buồng đốt và sinh ra khói độc chứa muội ẩm.",
-            "warning": "Không nên đốt. Đốt rác ướt gây lãng phí năng lượng và ô nhiễm khói mù."
-        },
-        "recyclability": {
-            "level": "Tái sinh sinh học (Ủ Phân Vi Sinh / Biogas)",
-            "difficulty_score": "Rất dễ",
-            "badge_color": "#10b981",
-            "analysis": "Rác hữu cơ là nguồn tài nguyên dinh dưỡng tuyệt vời để ủ thành phân bón mùn hữu cơ (compost) giàu đạm/khoáng cho cây trồng, hoặc ủ kỵ khí sinh khí metan sạch (Biogas) phục vụ đun nấu và phát điện.",
-            "economic_value": "Rất thiết thực — Cải tạo đất trồng trọt và giảm phụ thuộc phân hóa học."
-        },
-        "processing_steps": [
-            "1. Tại nguồn: Chắt ráo nước, loại bỏ rác vô cơ lẫn vào.",
-            "2. Thu gom: Vận chuyển hàng ngày về nhà máy chế biến phân vi sinh.",
-            "3. Nhà máy: Ủ hiếu khí 45 ngày với chế phẩm vi sinh bản địa hoặc ủ biogas sinh điện năng."
-        ],
-        "environmental_impact": {
-            "decomposition_time": "1 - 4 tuần (Phân hủy hoàn toàn thành mùn đất dinh dưỡng)",
-            "carbon_saving": "Phân loại rác hữu cơ tránh phát thải khí nhà kính Methane (CH4) tại bãi rác lộ thiên."
-        }
-    },
-    "other": {
-        "label_vi": "Rác khác / Rác nguy hại (Other)",
-        "bin": "Thùng rác sinh hoạt / Điểm thu gom nguy hại riêng",
-        "bin_color": "#64748b",
-        "guidance": "Bao gồm rác tồn dư khó phân loại, cao su, vải vụn và các loại rác nguy hại (pin, bóng đèn huỳnh quang, rác điện tử). Cần tách riêng rác nguy hại đưa về trạm thu gom chuyên dụng.",
-        "tips": [
-            "TUYỆT ĐỐI KHÔNG vứt pin cũ, bóng đèn, nhiệt kế thủy ngân vào thùng rác chung",
-            "Gom pin cũ vào hộp riêng và gửi đến điểm thu gom nguy hại của siêu thị/phường",
-            "Vải vụn, da giày hỏng cần gói kín bỏ thùng rác sinh hoạt",
-            "Tham khảo quy định phân loại chất thải nguy hại của chính quyền địa phương"
-        ],
-        "combustibility": {
-            "is_combustible": True,
-            "status": "Nguy cơ cháy nổ cao (Đối với Pin / Rác điện tử)",
-            "badge_color": "#dc2626",
-            "analysis": "Nếu chứa Pin Lithium-ion, bình ắc quy hoặc rác điện tử: cực kỳ dễ chập cháy và phát nổ khi gặp nhiệt độ cao hoặc bị va đập trong máy ép rác. Nếu là giẻ lau dầu mỡ hoặc cao su: cháy sinh khói đen khét lẹt chứa hợp chất lưu huỳnh độc hại.",
-            "warning": "CẢNH BÁO NGUY HIỂM: Pin và rác điện tử có nguy cơ gây cháy nổ chết người nếu đem thiêu đốt!"
-        },
-        "recyclability": {
-            "level": "Khó tái chế / Cần xử lý công nghệ đặc thù",
-            "difficulty_score": "Khó / Đặc thù",
-            "badge_color": "#dc2626",
-            "analysis": "Vật liệu hỗn hợp (composite) hoặc cao su lưu hóa rất khó phân tách để tái sinh. Rác điện tử chứa kim loại quý (vàng, bạc, đồng) nhưng cũng chứa chì, thủy ngân, cadimi đòi hỏi dây chuyền bóc tách công nghệ cao đạt chuẩn an toàn.",
-            "economic_value": "Đặc thù — Cần chi phí xử lý và thu hồi kim loại chuyên biệt."
-        },
-        "processing_steps": [
-            "1. Tại nguồn: Cách ly pin và bóng đèn ra khỏi dòng rác sinh hoạt thông thường.",
-            "2. Thu gom: Chuyển giao cho đơn vị có giấy phép xử lý chất thải nguy hại (Hazardous Waste).",
-            "3. Nhà máy: Bóc tách hóa học thu hồi kim loại nặng hoặc chôn lấp cô lập hóa học an toàn."
-        ],
-        "environmental_impact": {
-            "decomposition_time": "Vải sợi tổng hợp: 50-100 năm; Pin rò rỉ: Ô nhiễm nguồn nước vĩnh viễn",
-            "carbon_saving": "Thu gom đúng 1 viên pin cúc áo bảo vệ được 500 lít nước và 1m3 đất khỏi nhiễm độc thủy ngân."
-        }
-    }
-}
+# Vietnamese Waste Disposal Knowledge Base (Decoupled from model)
+# Loaded from backend/app/waste_disposal_kb.json via backend/app/knowledge_base.py
+# All entries backed by official legal regulations (Law on Env Protection 2020 & TCVN).
 
 # Cấu hình ngưỡng tin cậy (Uncertainty Threshold)
 DEFAULT_UNCERTAINTY_THRESHOLD = 0.65
 UNCERTAINTY_THRESHOLD = float(os.getenv("UNCERTAIN_CONFIDENCE_THRESHOLD", str(DEFAULT_UNCERTAINTY_THRESHOLD)))
+DEFAULT_TOP2_MARGIN_THRESHOLD = 0.15
+TOP2_MARGIN_THRESHOLD = float(os.getenv("TOP2_MARGIN_THRESHOLD", str(DEFAULT_TOP2_MARGIN_THRESHOLD)))
+DEFAULT_CALIBRATION_TEMPERATURE = 1.6348
+CALIBRATION_TEMPERATURE = float(os.getenv("CALIBRATION_TEMPERATURE", str(DEFAULT_CALIBRATION_TEMPERATURE)))
 
 # Cấu hình ngưỡng kiểm tra chất lượng hình ảnh
 MIN_IMAGE_DIMENSION = int(os.getenv("MIN_IMAGE_DIMENSION", "64"))
@@ -301,6 +98,13 @@ class RecommendationInfo(BaseModel):
     recyclability: Optional[RecyclabilityInfo] = None
     processing_steps: Optional[List[str]] = None
     environmental_impact: Optional[Dict[str, str]] = None
+    preparation_requirements: Optional[List[str]] = None
+    special_destination: Optional[str] = None
+    jurisdiction: Optional[str] = None
+    source: Optional[str] = None
+    last_verified: Optional[str] = None
+    mixed_material_notes: Optional[str] = None
+    disclaimer: Optional[str] = None
 
 class TopPredictionItem(BaseModel):
     class_name: str = Field(..., description="Mã định danh lớp rác thải (vd: plastic, paper, metal, glass, organic, other)")
@@ -321,6 +125,7 @@ class PredictionResponse(BaseModel):
     predicted_class: str
     label_vi: str
     confidence: float
+    calibrated_confidence: Optional[float] = Field(default=None, description="Độ tin cậy sau hiệu chuẩn nhiệt độ (Temperature Scaling T=1.6366)")
     probabilities: Dict[str, float]
     top_predictions: List[TopPredictionItem] = Field(default_factory=list, description="Top-3 lớp có xác suất cao nhất")
     is_uncertain: bool = Field(default=False, description="Cảnh báo độ tin cậy thấp nếu confidence < ngưỡng cài đặt")
@@ -335,6 +140,10 @@ class PredictionResponse(BaseModel):
     image_format: str
     gradcam_overlay: Optional[str] = Field(default=None, description="Ảnh trực quan hóa Grad-CAM (XAI) Data URI Base64")
     gradcam_heatmap: Optional[str] = Field(default=None, description="Bản đồ nhiệt Grad-CAM độc lập Data URI Base64")
+    is_waste_detected: bool = Field(default=True, description="Đánh giá ảnh có chứa rác thải hợp lệ hay không")
+    detection_status: str = Field(default="valid_waste", description="Trạng thái phát hiện: valid_waste, person_detected, pet_detected, furniture_detected, scenery_detected, uncertain")
+    rejection_reason: Optional[str] = Field(default=None, description="Lý do từ chối nếu phát hiện ảnh không phải rác")
+    suggested_action: Optional[str] = Field(default=None, description="Hướng dẫn chụp lại ảnh cho người dùng")
 
 class ImageUrlRequest(BaseModel):
     image_url: str = Field(..., description="Đường dẫn URL công khai của hình ảnh rác thải cần phân loại")
@@ -344,6 +153,37 @@ class BatchPredictionItem(BaseModel):
     success: bool
     result: Optional[PredictionResponse] = None
     error: Optional[str] = None
+
+
+class DetectedObjectItem(BaseModel):
+    index: int
+    bbox: List[float] = Field(..., description="Tọa độ pixel [x1, y1, x2, y2]")
+    bbox_normalized: List[float] = Field(..., description="Tọa độ chuẩn hóa [x1/W, y1/H, x2/W, y2/H]")
+    detector_label: str = Field(..., description="Nhãn định vị COCO gốc")
+    detector_label_vi: str = Field(..., description="Tên đối tượng tiếng Việt")
+    detector_confidence: float = Field(..., description="Độ tin cậy của detector (0.0 - 1.0)")
+    waste_class: str = Field(..., description="Nhóm rác phân loại 6 lớp")
+    label_vi: str = Field(..., description="Tên danh mục rác tiếng Việt")
+    classifier_confidence: float = Field(..., description="Độ tin cậy của MobileNetV3 classifier (0.0 - 1.0)")
+    probabilities: Dict[str, float] = Field(..., description="Phân bố xác suất 6 lớp")
+    recommendation: Dict[str, Any] = Field(..., description="Hướng dẫn bỏ rác")
+
+class NonWasteDetectedItem(BaseModel):
+    class_name: str
+    detector_confidence: float
+    bbox: List[float]
+
+class MultiObjectDetectionResponse(BaseModel):
+    success: bool = True
+    total_objects: int = Field(..., description="Tổng số vật thể rác thải được phát hiện")
+    objects: List[DetectedObjectItem] = Field(default_factory=list, description="Danh sách chi tiết các vật thể rác")
+    category_counts: Dict[str, int] = Field(..., description="Thống kê số lượng theo 6 nhóm rác thải")
+    has_non_waste: bool = Field(default=False, description="Có phát hiện vật thể không phải rác (người, nội thất...)")
+    non_waste_objects: List[NonWasteDetectedItem] = Field(default_factory=list)
+    annotated_image: Optional[str] = Field(default=None, description="Ảnh đã vẽ bounding box màu đỏ (Data URI Base64)")
+    image_dimensions: Dict[str, int]
+    processing_time_ms: Optional[float] = None
+    filename: str
 
 class BatchPredictionResponse(BaseModel):
     total: int
@@ -383,6 +223,9 @@ class HistoryRecordItem(BaseModel):
     feedback_correct_class: Optional[str] = None
     feedback_note: Optional[str] = None
     feedback_at: Optional[str] = None
+    is_waste_detected: Optional[bool] = None
+    detection_status: Optional[str] = None
+    rejection_reason: Optional[str] = None
 
 class HistoryListResponse(BaseModel):
     items: List[HistoryRecordItem]
@@ -768,6 +611,90 @@ def process_waste_image_bytes(
     model = app.state.model
     classes = app.state.classes
 
+    # Non-Waste & Out-of-Distribution (OOD) Semantic Gating
+    ood_info = detect_non_waste_or_ood(rgb_image, device)
+    if not ood_info.get("is_waste_detected", True):
+        det_status = ood_info.get("detection_status", "uncertain")
+        rej_reason = ood_info.get("rejection_reason") or "Phát hiện đối tượng ngoại lai không phải rác thải sinh hoạt."
+        sug_action = ood_info.get("suggested_action") or "Vui lòng chụp cận cảnh vật thể rác thải sinh hoạt (chai lọ, vỏ hộp, thức ăn thừa...)."
+        predicted_class = "unsupported_non_waste"
+        label_vi = "Không phải rác thải / Đối tượng ngoại lai"
+        probabilities = {cls_name: 0.0 for cls_name in classes}
+        top_predictions = []
+        uncertainty_note = f"{rej_reason} {sug_action}"
+
+        recommendation = RecommendationInfo(
+            label_vi="Đối tượng không thuộc danh mục rác thải",
+            bin="Không thuộc đối tượng phân loại",
+            bin_color="#64748b",
+            guidance=(
+                f"Hệ thống phát hiện hình ảnh không phải là rác thải sinh hoạt ({det_status}). " 
+                "Để đảm bảo an toàn và tính chính xác, hệ thống từ chối đưa ra hướng dẫn xử lý hoặc phân loại thùng rác cho người, " 
+                "thú cưng hoặc đồ dùng gia đình. Vui lòng chỉ chụp cận cảnh một vật thể rác thải sinh hoạt."
+            ),
+            tips=[
+                "Chụp cận cảnh món rác (chai, lon, vỏ hộp, thức ăn thừa...) chiếm ít nhất 50% khung hình.",
+                "Tránh để người, khuôn mặt hoặc thú cưng lọt vào bức ảnh.",
+                "Chụp trên nền đơn giản (mặt bàn sạch, sàn nhà) và đủ ánh sáng."
+            ],
+            combustibility=None,
+            recyclability=None,
+            processing_steps=None,
+            environmental_impact=None
+        )
+
+        history_record_id = None
+        try:
+            saved_record = save_prediction_record({
+                "filename": filename,
+                "predicted_class": predicted_class,
+                "label_vi": label_vi,
+                "confidence": 0.0,
+                "is_uncertain": True,
+                "uncertainty_note": uncertainty_note,
+                "probabilities": probabilities,
+                "top_predictions": [],
+                "quality_assessment": quality_info.model_dump() if quality_info else None,
+                "recommendation": recommendation.model_dump(),
+                "image_dimensions": img_dimensions,
+                "image_format": img_format,
+                "image_size_bytes": file_size,
+                "is_waste_detected": False,
+                "detection_status": det_status,
+                "rejection_reason": rej_reason
+            })
+            history_record_id = saved_record.get("id")
+        except Exception as db_save_err:
+            logger.error(f"Failed to save OOD prediction record: {db_save_err}")
+
+        return PredictionResponse(
+            success=True,
+            mock=False,
+            record_id=history_record_id,
+            predicted_class=predicted_class,
+            label_vi=label_vi,
+            confidence=0.0,
+            probabilities=probabilities,
+            top_predictions=[],
+            is_uncertain=True,
+            uncertainty_threshold=UNCERTAINTY_THRESHOLD,
+            uncertainty_note=uncertainty_note,
+            quality_assessment=quality_info,
+            recommendation=recommendation,
+            filename=filename,
+            content_type=content_type or f"image/{img_format.lower()}",
+            image_size_bytes=file_size,
+            image_dimensions=img_dimensions,
+            image_format=img_format,
+            gradcam_overlay=None,
+            gradcam_heatmap=None,
+            is_waste_detected=False,
+            detection_status=det_status,
+            rejection_reason=rej_reason,
+            suggested_action=sug_action
+        )
+
+
     try:
         with torch.inference_mode():
             logits = model(tensor_input)
@@ -783,6 +710,11 @@ def process_waste_image_bytes(
     pred_idx = int(torch.argmax(probs).item())
     predicted_class = classes[pred_idx]
     confidence = float(probs_list[pred_idx])
+
+    # Temperature Scaling (Calibrated on Validation Set T*=1.6366)
+    calibrated_logits = logits / CALIBRATION_TEMPERATURE
+    calibrated_probs_t = torch.softmax(calibrated_logits, dim=1)[0]
+    calibrated_confidence = round(float(calibrated_probs_t[pred_idx].item()), 4)
 
     probabilities: Dict[str, float] = {}
     for i, cls_name in enumerate(classes):
@@ -801,16 +733,40 @@ def process_waste_image_bytes(
             )
         )
 
-    is_uncertain = confidence < UNCERTAINTY_THRESHOLD
+    top1_idx = sorted_class_indices[0]
+    top2_idx = sorted_class_indices[1] if len(sorted_class_indices) > 1 else top1_idx
+    top1_prob = probs_list[top1_idx]
+    top2_prob = probs_list[top2_idx] if len(sorted_class_indices) > 1 else 0.0
+    prob_gap = top1_prob - top2_prob
+
+    is_low_conf = confidence < UNCERTAINTY_THRESHOLD
+    is_close_margin = prob_gap < TOP2_MARGIN_THRESHOLD and len(classes) > 1
+    is_uncertain = is_low_conf or is_close_margin
     uncertainty_note = None
-    if is_uncertain:
+
+    if is_close_margin:
+        c1_name = classes[top1_idx]
+        c2_name = classes[top2_idx]
+        c1_lbl = RECOMMENDATIONS.get(c1_name, {}).get("label_vi", c1_name)
+        c2_lbl = RECOMMENDATIONS.get(c2_name, {}).get("label_vi", c2_name)
+        uncertainty_note = (
+            f"Mô hình đang phân vân giữa hai nhóm: '{c1_lbl}' ({top1_prob * 100:.1f}%) và '{c2_lbl}' ({top2_prob * 100:.1f}%), "
+            f"độ chênh lệch xác suất chỉ {prob_gap * 100:.1f}% (< {TOP2_MARGIN_THRESHOLD * 100:.0f}%). "
+            "Vui lòng kiểm tra kỹ chất liệu thực tế của đồ vật hoặc chụp cận cảnh hơn."
+        )
+    elif is_low_conf:
         uncertainty_note = (
             f"Độ tin cậy dự đoán ({confidence * 100:.1f}%) thấp hơn ngưỡng an toàn ({UNCERTAINTY_THRESHOLD * 100:.0f}%). "
             "Hình ảnh có thể bị mờ, thiếu sáng, chụp góc nghiêng hoặc chứa nhiều vật liệu lẫn lộn. "
             "Khuyến nghị bạn kiểm tra lại hoặc chụp cận cảnh rõ nét hơn."
         )
 
-    rec_data = RECOMMENDATIONS.get(predicted_class, RECOMMENDATIONS["other"])
+    rec_data = get_disposal_guidance(
+        waste_class=predicted_class,
+        filename=filename,
+        is_uncertain=is_uncertain,
+        uncertainty_note=uncertainty_note
+    )
     recommendation = RecommendationInfo(
         label_vi=rec_data["label_vi"],
         bin=rec_data["bin"],
@@ -820,7 +776,14 @@ def process_waste_image_bytes(
         combustibility=CombustibilityInfo(**rec_data["combustibility"]) if rec_data.get("combustibility") else None,
         recyclability=RecyclabilityInfo(**rec_data["recyclability"]) if rec_data.get("recyclability") else None,
         processing_steps=rec_data.get("processing_steps"),
-        environmental_impact=rec_data.get("environmental_impact")
+        environmental_impact=rec_data.get("environmental_impact"),
+        preparation_requirements=rec_data.get("preparation_requirements"),
+        special_destination=rec_data.get("special_destination"),
+        jurisdiction=rec_data.get("jurisdiction"),
+        source=rec_data.get("source"),
+        last_verified=rec_data.get("last_verified"),
+        mixed_material_notes=rec_data.get("mixed_material_notes"),
+        disclaimer=rec_data.get("disclaimer")
     )
 
     gradcam_overlay_b64 = None
@@ -865,6 +828,7 @@ def process_waste_image_bytes(
         predicted_class=predicted_class,
         label_vi=rec_data["label_vi"],
         confidence=round(confidence, 4),
+        calibrated_confidence=calibrated_confidence,
         probabilities=probabilities,
         top_predictions=top_predictions,
         is_uncertain=is_uncertain,
@@ -878,7 +842,11 @@ def process_waste_image_bytes(
         image_dimensions=img_dimensions,
         image_format=img_format,
         gradcam_overlay=gradcam_overlay_b64,
-        gradcam_heatmap=gradcam_heatmap_b64
+        gradcam_heatmap=gradcam_heatmap_b64,
+        is_waste_detected=True,
+        detection_status="valid_waste",
+        rejection_reason=None,
+        suggested_action=None
     )
 
 
@@ -1002,6 +970,137 @@ async def predict_waste_batch(
         successful=success_count,
         failed=len(files) - success_count,
         items=items
+    )
+
+
+
+def process_multi_object_detection_bytes(
+    contents: bytes,
+    filename: str
+) -> MultiObjectDetectionResponse:
+    if not getattr(app.state, "model_loaded", False) or app.state.model is None:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="AI inference engine is unavailable or failed to load. Please check server logs."
+        )
+
+    file_size = len(contents)
+    if file_size == 0:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Tệp ảnh tải lên rỗng (0 bytes)."
+        )
+
+    if file_size > MAX_UPLOAD_SIZE_BYTES:
+        raise HTTPException(
+            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+            detail=f"Dung lượng tệp vượt quá giới hạn cho phép {MAX_UPLOAD_SIZE_BYTES // (1024 * 1024)} MB."
+        )
+
+    try:
+        image_stream = io.BytesIO(contents)
+        pil_image = Image.open(image_stream)
+        pil_image.verify()
+    except (UnidentifiedImageError, OSError, ValueError) as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Tệp không phải định dạng hình ảnh hợp lệ: {e}"
+        )
+
+    image_stream.seek(0)
+    pil_image = Image.open(image_stream).convert("RGB")
+
+    import time
+    t0 = time.time()
+    device = torch.device(getattr(app.state, "device", "cpu"))
+
+    try:
+        det_res = detect_and_classify_multiple_objects(
+            image=pil_image,
+            classifier_model=app.state.model,
+            classifier_transform=app.state.transform,
+            target_classes=getattr(app.state, "classes", ["plastic", "paper", "metal", "glass", "organic", "other"]),
+            recommendations_db=RECOMMENDATIONS,
+            device=device
+        )
+    except Exception as det_err:
+        logger.error(f"Error during multi-object detection pipeline: {det_err}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Lỗi trong quá trình xử lý phát hiện đa vật thể: {det_err}"
+        )
+
+    proc_time = round((time.time() - t0) * 1000, 2)
+
+    return MultiObjectDetectionResponse(
+        success=True,
+        total_objects=det_res["total_objects"],
+        objects=det_res["objects"],
+        category_counts=det_res["category_counts"],
+        has_non_waste=det_res["has_non_waste"],
+        non_waste_objects=det_res["non_waste_objects"],
+        annotated_image=det_res["annotated_image"],
+        image_dimensions=det_res["image_dimensions"],
+        processing_time_ms=proc_time,
+        filename=filename
+    )
+
+
+@app.post("/api/detect", response_model=MultiObjectDetectionResponse, summary="Detect and Classify Multiple Waste Objects")
+async def detect_multi_waste(
+    file: UploadFile = File(...)
+):
+    if not file or not file.filename:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Không có tệp ảnh nào được đính kèm."
+        )
+    try:
+        contents = await file.read()
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Lỗi khi đọc luồng tệp tải lên: {e}"
+        )
+
+    return process_multi_object_detection_bytes(
+        contents=contents,
+        filename=file.filename
+    )
+
+
+@app.post("/api/detect/url", response_model=MultiObjectDetectionResponse, summary="Detect and Classify Multiple Waste Objects from URL")
+async def detect_multi_waste_url(
+    payload: ImageUrlRequest
+):
+    url = payload.image_url.strip()
+    parsed = urllib.parse.urlparse(url)
+    if not parsed.scheme in ("http", "https") or not parsed.netloc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Đường dẫn URL không hợp lệ (phải bắt đầu bằng http:// hoặc https://)."
+        )
+
+    headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AIWasteClassifier/1.0"}
+    req = urllib.request.Request(url, headers=headers)
+    try:
+        with urllib.request.urlopen(req, timeout=10.0) as response:
+            contents = response.read(MAX_UPLOAD_SIZE_BYTES + 1)
+            if len(contents) > MAX_UPLOAD_SIZE_BYTES:
+                raise HTTPException(
+                    status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+                    detail="Ảnh từ URL vượt quá dung lượng tối đa 10 MB."
+                )
+    except Exception as net_err:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Không thể tải ảnh từ URL cung cấp: {net_err}"
+        )
+
+    path_name = Path(parsed.path).name or "web_image.jpg"
+    return process_multi_object_detection_bytes(
+        contents=contents,
+        filename=path_name
     )
 
 

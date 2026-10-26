@@ -1,0 +1,162 @@
+{
+  "test_metrics": {
+    "accuracy": 0.9598,
+    "macro_precision": 0.9541,
+    "macro_recall": 0.9585,
+    "macro_f1": 0.9561,
+    "per_class": {
+      "plastic": {
+        "precision": 0.9219,
+        "recall": 0.9219,
+        "f1": 0.9219,
+        "support": 269
+      },
+      "paper": {
+        "precision": 0.9878,
+        "recall": 0.962,
+        "f1": 0.9747,
+        "support": 421
+      },
+      "metal": {
+        "precision": 0.9028,
+        "recall": 0.9489,
+        "f1": 0.9253,
+        "support": 235
+      },
+      "glass": {
+        "precision": 0.9645,
+        "recall": 0.9645,
+        "f1": 0.9645,
+        "support": 366
+      },
+      "organic": {
+        "precision": 0.9647,
+        "recall": 0.9891,
+        "f1": 0.9767,
+        "support": 276
+      },
+      "other": {
+        "precision": 0.9831,
+        "recall": 0.9644,
+        "f1": 0.9736,
+        "support": 421
+      }
+    },
+    "confusion_matrix": [
+      [
+        248,
+        0,
+        12,
+        8,
+        1,
+        0
+      ],
+      [
+        5,
+        405,
+        3,
+        2,
+        3,
+        3
+      ],
+      [
+        7,
+        2,
+        223,
+        2,
+        0,
+        1
+      ],
+      [
+        6,
+        1,
+        4,
+        353,
+        1,
+        1
+      ],
+      [
+        0,
+        1,
+        0,
+        0,
+        273,
+        2
+      ],
+      [
+        3,
+        1,
+        5,
+        1,
+        5,
+        406
+      ]
+    ]
+  },
+  "calibration": {
+    "optimal_temperature_val": 1.6366,
+    "uncalibrated_val_ece": 0.0198,
+    "calibrated_val_ece": 0.0077,
+    "uncalibrated_test_ece": 0.0212,
+    "calibrated_test_ece": 0.0119,
+    "uncalibrated_test_brier": 0.0674,
+    "calibrated_test_brier": 0.0659,
+    "uncalibrated_test_nll": 0.1633,
+    "calibrated_test_nll": 0.1356
+  },
+  "top2_margin_audit": [
+    {
+      "margin_thresh": 0.0,
+      "coverage": 100.0,
+      "retained_acc": 95.98,
+      "abstained_count": 0,
+      "abstain_errors_caught": 0
+    },
+    {
+      "margin_thresh": 0.05,
+      "coverage": 99.45,
+      "retained_acc": 96.21,
+      "abstained_count": 11,
+      "abstain_errors_caught": 5
+    },
+    {
+      "margin_thresh": 0.1,
+      "coverage": 98.64,
+      "retained_acc": 96.58,
+      "abstained_count": 27,
+      "abstain_errors_caught": 13
+    },
+    {
+      "margin_thresh": 0.15,
+      "coverage": 98.29,
+      "retained_acc": 96.62,
+      "abstained_count": 34,
+      "abstain_errors_caught": 14
+    },
+    {
+      "margin_thresh": 0.2,
+      "coverage": 97.84,
+      "retained_acc": 96.92,
+      "abstained_count": 43,
+      "abstain_errors_caught": 20
+    },
+    {
+      "margin_thresh": 0.25,
+      "coverage": 97.48,
+      "retained_acc": 97.06,
+      "abstained_count": 50,
+      "abstain_errors_caught": 23
+    },
+    {
+      "margin_thresh": 0.3,
+      "coverage": 97.18,
+      "retained_acc": 97.15,
+      "abstained_count": 56,
+      "abstain_errors_caught": 25
+    }
+  ],
+  "duplicate_hash_check": {
+    "total_checked": 13208,
+    "leakage_count": 7
+  }
+}

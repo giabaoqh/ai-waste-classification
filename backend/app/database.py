@@ -118,6 +118,12 @@ def init_db(db_path: Optional[Path] = None) -> None:
             conn.execute("ALTER TABLE prediction_history ADD COLUMN feedback_at TEXT DEFAULT NULL;")
         if "feedback_status" not in existing_cols:
             conn.execute("ALTER TABLE prediction_history ADD COLUMN feedback_status TEXT DEFAULT NULL;")
+        if "is_waste_detected" not in existing_cols:
+            conn.execute("ALTER TABLE prediction_history ADD COLUMN is_waste_detected INTEGER DEFAULT 1;")
+        if "detection_status" not in existing_cols:
+            conn.execute("ALTER TABLE prediction_history ADD COLUMN detection_status TEXT DEFAULT 'valid_waste';")
+        if "rejection_reason" not in existing_cols:
+            conn.execute("ALTER TABLE prediction_history ADD COLUMN rejection_reason TEXT DEFAULT NULL;")
 
     logger.info("Database schema, indexes, and migrations initialized successfully.")
 
@@ -147,6 +153,11 @@ def _row_to_dict(row: sqlite3.Row) -> Dict[str, Any]:
                 data[key_name] = None
         else:
             data[key_name] = None
+
+    # Non-waste and OOD detection fields
+    data["is_waste_detected"] = bool(data.get("is_waste_detected", 1)) if data.get("is_waste_detected") is not None else True
+    data["detection_status"] = data.get("detection_status") or "valid_waste"
+    data["rejection_reason"] = data.get("rejection_reason")
 
     # Tái tạo image_dimensions tiện lợi cho frontend
     if data.get("image_width") and data.get("image_height"):
@@ -192,14 +203,17 @@ def save_prediction_record(
     height = dims.get("height") if isinstance(dims, dict) else None
     image_format = record_data.get("image_format")
     image_size_bytes = record_data.get("image_size_bytes")
+    is_waste_detected = 0 if record_data.get("is_waste_detected") is False else 1
+    detection_status = record_data.get("detection_status", "valid_waste")
+    rejection_reason = record_data.get("rejection_reason")
 
     insert_sql = """
     INSERT INTO prediction_history (
         created_at, filename, predicted_class, label_vi, confidence,
         is_uncertain, uncertainty_note, probabilities_json, top_predictions_json,
         quality_assessment_json, recommendation_json, image_width, image_height,
-        image_format, image_size_bytes
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+        image_format, image_size_bytes, is_waste_detected, detection_status, rejection_reason
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
     """
 
     with get_db_connection(db_path) as conn:
@@ -209,7 +223,8 @@ def save_prediction_record(
             (
                 created_at, filename, predicted_class, label_vi, confidence,
                 is_uncertain, uncertainty_note, probabilities_json, top_predictions_json,
-                quality_json, rec_json, width, height, image_format, image_size_bytes
+                quality_json, rec_json, width, height, image_format, image_size_bytes,
+                is_waste_detected, detection_status, rejection_reason
             )
         )
         record_id = cursor.lastrowid

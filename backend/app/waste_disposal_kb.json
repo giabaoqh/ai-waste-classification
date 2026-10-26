@@ -1,0 +1,439 @@
+{
+  "version": "1.0.0",
+  "last_updated": "2026-10-26",
+  "default_jurisdiction": "Việt Nam (Luật Bảo vệ Môi trường 2020 & Nghị định 08/2022/NĐ-CP)",
+  "disclaimer": "Lưu ý: Hướng dẫn phân loại rác dựa trên Quy định Quản lý Chất thải Sinh hoạt theo Luật BVMT Việt Nam. Quy định thu gom thực tế tại từng địa phương (tỉnh/thành phố) hoặc cơ sở có thể có sự khác biệt.",
+  "categories": {
+    "plastic": {
+      "id": "plastic",
+      "label_vi": "Nhựa (Plastic)",
+      "aliases": ["chai nhựa", "hộp nhựa", "nilon", "nhựa tái chế", "pet", "hdpe", "pp"],
+      "bin": "Thùng rác tái chế (Màu vàng/trắng)",
+      "bin_color": "#eab308",
+      "special_destination": null,
+      "guidance": "Tráng sạch cặn chất lỏng hoặc dầu mỡ thừa, bóp xẹp chai/hộp nhựa để tiết kiệm thể tích trước khi bỏ vào thùng rác tái chế. Tháo rời nắp và nhãn mác nếu có thể.",
+      "preparation_requirements": [
+        "Đổ hết nước và chất lỏng đọng lại bên trong",
+        "Tráng sơ qua nước sạch nếu dính dầu mỡ hoặc đường ngọt",
+        "Bóp xẹp thân chai để tiết kiệm 70% không gian thùng chứa",
+        "Tách riêng nắp chai và nhãn bọc màng co nếu thuận tiện"
+      ],
+      "tips": [
+        "Đổ hết nước và chất lỏng còn đọng lại bên trong",
+        "Tráng sơ qua nước sạch nếu còn dính dầu mỡ/thức ăn",
+        "Bóp xẹp chai hoặc cán phẳng hộp để giảm 70% thể tích chứa",
+        "Phân loại riêng nắp chai (nhựa HDPE) và thân chai (nhựa PET)"
+      ],
+      "combustibility": {
+        "is_combustible": true,
+        "status": "Cháy được (Cảnh báo khí độc hại)",
+        "badge_color": "#ea580c",
+        "analysis": "Nhựa có nhiệt trị cao tương đương dầu mỏ nhưng TUYỆT ĐỐI KHÔNG tự đốt hở tại nhà vì sinh ra khí độc Dioxin, Furan và muội than đen gây hại đường hô hấp. Chỉ được thiêu đốt trong các lò đốt rác phát điện (WtE) công nghiệp có xử lý khí thải.",
+        "warning": "Không đốt hở ngoài trời. Khí thải Dioxin từ nhựa cháy có nguy cơ gây ung thư."
+      },
+      "recyclability": {
+        "status": "recyclable",
+        "level": "Tái chế phổ biến / Giá trị kinh tế cao",
+        "difficulty_score": "Dễ",
+        "badge_color": "#16a34a",
+        "analysis": "Nhựa nhiệt dẻo như PET (chai nước ngọt) và HDPE (hộp sữa, can nước giặt) rất dễ tái chế cơ học. Nhựa nhiều lớp (túi snack tráng bạc) khó tái chế hơn và cần dây chuyền ép viên RDF.",
+        "economic_value": "Rất cao — Được các nhà máy tái sinh hạt nhựa thu mua liên tục."
+      },
+      "processing_steps": [
+        "1. Tại nguồn: Rửa sạch, để ráo và bóp xẹp vỏ chai.",
+        "2. Thu gom: Đưa về trạm ép kiện nhựa tập trung.",
+        "3. Nhà máy: Băm nhỏ thành mảnh vảy (flakes), giặt nhiệt tẩy keo và kéo hạt nhựa tái sinh."
+      ],
+      "environmental_impact": {
+        "decomposition_time": "450 - 500 năm trong tự nhiên",
+        "carbon_saving": "Tái chế 1 tấn nhựa tiết kiệm ~1.5 tấn CO2 so với sản xuất nhựa nguyên sinh."
+      },
+      "mixed_material_notes": "Chai nước có nắp nhựa và vòng niêm phong khác chất liệu (thân PET, nắp HDPE/PP). Nhà máy tái chế sẽ tuyển nổi qua nước để tách riêng.",
+      "source": "Bộ Tài nguyên & Môi trường; TCVN 13952:2024 về Quản lý Chất thải nhựa",
+      "last_verified": "2026-10"
+    },
+    "paper": {
+      "id": "paper",
+      "label_vi": "Giấy / Bìa carton (Paper)",
+      "aliases": ["giấy báo", "bìa carton", "thùng giấy", "sách vở", "tạp chí", "hộp giấy"],
+      "bin": "Thùng rác tái chế (Màu vàng/trắng)",
+      "bin_color": "#3b82f6",
+      "special_destination": null,
+      "guidance": "Giữ giấy khô ráo và sạch sẽ, gấp phẳng các thùng bìa carton. Nếu giấy bị dính dầu mỡ thức ăn hoặc ẩm ướt nặng, vui lòng bỏ vào thùng rác sinh hoạt thông thường.",
+      "preparation_requirements": [
+        "Giữ giấy khô ráo, tránh dính nước mưa hoặc dầu mỡ",
+        "Gấp dẹp hoặc rọc mép các thùng bìa carton",
+        "Bóc bỏ băng dính đóng hàng và ghim bấm kim loại lớn nếu có",
+        "Giấy thấm dầu, khăn ướt, giấy vệ sinh đã qua sử dụng không được bỏ vào thùng tái chế"
+      ],
+      "tips": [
+        "Giữ giấy khô ráo, tránh để dính nước hoặc ẩm mốc",
+        "Gấp phẳng thùng carton để tiết kiệm diện tích thu gom",
+        "Loại bỏ băng dính dán trên hộp carton nếu có thể",
+        "Giấy thấm dầu, hộp giấy dính mỡ thức ăn phải bỏ rác sinh hoạt"
+      ],
+      "combustibility": {
+        "is_combustible": true,
+        "status": "Dễ bắt cháy (Nhiên liệu sinh khối RDF)",
+        "badge_color": "#f97316",
+        "analysis": "Giấy khô cực kỳ dễ bắt cháy, nhiệt độ bốc cháy thấp (~230°C). Giấy sạch nên ưu tiên tái chế bột giấy; giấy dơ không tái chế được có thể ép thành viên nhiên liệu đốt sinh khối công nghiệp.",
+        "warning": "Cần lưu trữ nơi khô ráo, tránh xa nguồn nhiệt để phòng ngừa hỏa hoạn."
+      },
+      "recyclability": {
+        "status": "recyclable",
+        "level": "Dễ tái chế cao",
+        "difficulty_score": "Dễ",
+        "badge_color": "#16a34a",
+        "analysis": "Sợi cellulose trong giấy có thể tái chế từ 5 đến 7 chu kỳ trước khi sợi bị đứt gãy quá ngắn. Giấy carton sóng có tỷ lệ thu hồi tái chế cao nhất.",
+        "economic_value": "Cao — Là nguồn nguyên liệu chính cho ngành bao bì carton."
+      },
+      "processing_steps": [
+        "1. Tại nguồn: Xếp phẳng, giữ khô ráo, bó thành kiện.",
+        "2. Thu gom: Vận chuyển đến các xưởng xeo giấy.",
+        "3. Nhà máy: Đánh bột thuỷ lực, tẩy mực, sàng lọc xơ sợi và xeo thành giấy bao bì mới."
+      ],
+      "environmental_impact": {
+        "decomposition_time": "2 - 6 tuần (trong điều kiện hiếu khí)",
+        "carbon_saving": "Tái chế 1 tấn giấy cứu sống ~17 cây xanh và tiết kiệm 4.000 kWh điện."
+      },
+      "mixed_material_notes": "Hộp giấy đựng sữa nhiều lớp (Tetra Pak) có tráng màng nhôm và nhựa mỏng cần công nghệ bóc tách bột giấy riêng biệt.",
+      "source": "Hiệp hội Giấy và Bột giấy Việt Nam (VPPA); Luật BVMT 2020",
+      "last_verified": "2026-10"
+    },
+    "metal": {
+      "id": "metal",
+      "label_vi": "Kim loại (Metal)",
+      "aliases": ["vỏ lon nhôm", "hộp thiếc", "sắt thép", "đồng", "nắp kim loại"],
+      "bin": "Thùng rác tái chế (Màu vàng/trắng)",
+      "bin_color": "#ef4444",
+      "special_destination": null,
+      "guidance": "Đổ sạch phần thức ăn hoặc đồ uống còn lại bên trong lon/hộp kim loại; tráng sơ qua nước. Cẩn thận các cạnh sắc nhọn của nắp lon khi bỏ vào thùng rác tái chế.",
+      "preparation_requirements": [
+        "Rót cạn nước ngọt/bia thừa khỏi lon",
+        "Tráng sơ qua nước để tránh thu hút ruồi muỗi",
+        "Gập mép nắp lon sắc nhọn vào trong để an toàn cho công nhân thu gom",
+        "Dẫm dẹp lon nhôm để giảm thể tích chứa"
+      ],
+      "tips": [
+        "Làm rỗng hoàn toàn nước ngọt/bia trong vỏ lon",
+        "Tráng sạch cặn thức ăn thừa trong hộp thiếc",
+        "Gập mép nắp sắc nhọn vào trong để đảm bảo an toàn cho nhân viên thu gom",
+        "Dẫm dẹp vỏ lon nhôm để giảm thể tích"
+      ],
+      "combustibility": {
+        "is_combustible": false,
+        "status": "Không thể cháy",
+        "badge_color": "#0284c7",
+        "analysis": "Kim loại (nhôm, sắt, thép, thiếc) là vật liệu vô cơ không cháy trong điều kiện thông thường. Khi đưa vào lò đốt rác, kim loại không sinh nhiệt mà tiêu tốn năng lượng lò và đọng lại dưới dạng xỉ đáy lò.",
+        "warning": "Vỏ bình xịt khí nén (aerosol) có nguy cơ phát nổ nếu đưa vào nguồn nhiệt."
+      },
+      "recyclability": {
+        "status": "recyclable",
+        "level": "Tái chế vô hạn lần (100% Recyclable)",
+        "difficulty_score": "Rất dễ",
+        "badge_color": "#10b981",
+        "analysis": "Kim loại có thể nấu chảy và tái chế tuần hoàn vô hạn lần mà không làm suy giảm tính chất cơ lý tính. Tái chế nhôm tiết kiệm đến 95% năng lượng so với luyện nhôm từ quặng bauxite.",
+        "economic_value": "Rất cao — Kim loại phế liệu luôn được săn đón và thu mua giá cao."
+      },
+      "processing_steps": [
+        "1. Tại nguồn: Rửa sạch cặn, làm dẹp lon nhôm.",
+        "2. Thu gom: Phân loại sắt từ bằng nam châm và tách nhôm bằng dòng điện xoáy (Eddy current).",
+        "3. Nhà máy: Nung chảy ở 660°C (nhôm) hoặc 1500°C (sắt thép) và đúc thành phôi kim loại."
+      ],
+      "environmental_impact": {
+        "decomposition_time": "200 - 500 năm đối với lon nhôm",
+        "carbon_saving": "Tái chế 1 tấn nhôm ngăn phát thải ~9 tấn khí nhà kính CO2."
+      },
+      "mixed_material_notes": "Vỏ lon đồ hộp thiếc có lớp tráng phủ mỏng bên trong, được loại bỏ bằng nhiệt phân trong quá trình tái chế công nghiệp.",
+      "source": "Viện Luyện kim & Vật liệu kim loại Việt Nam; Luật BVMT 2020",
+      "last_verified": "2026-10"
+    },
+    "glass": {
+      "id": "glass",
+      "label_vi": "Thủy tinh (Glass)",
+      "aliases": ["chai thủy tinh", "lọ thủy tinh", "hũ thủy tinh", "mảnh kính"],
+      "bin": "Thùng rác tái chế / Trạm thu gom thủy tinh",
+      "bin_color": "#06b6d4",
+      "special_destination": null,
+      "guidance": "Làm rỗng và tráng sạch chai lọ thủy tinh. Tháo bỏ nắp nhựa hoặc nắp kim loại để phân loại riêng. Nếu là mảnh vỡ thủy tinh, bọc kỹ bằng giấy báo hoặc bìa cứng để đảm bảo an toàn.",
+      "preparation_requirements": [
+        "Tráng cặn chất lỏng hoặc dầu ăn trong chai lọ",
+        "Tháo nắp nhựa hoặc nắp kim loại để phân loại riêng",
+        "Nếu chai vỡ: Bọc kín nhiều lớp giấy báo và dán băng dính ghi chú 'Thủy tinh vỡ'",
+        "Không lẫn gốm sứ, kính cường lực cửa sổ hoặc thủy tinh pha lê chịu nhiệt"
+      ],
+      "tips": [
+        "Tráng sạch cặn bẩn hoặc dầu giấm trong chai lọ",
+        "Tháo nắp nhựa hoặc nắp kim loại để phân loại vào nhóm tương ứng",
+        "Nếu bị vỡ: Gom mảnh vỡ và bọc chặt bằng giấy báo hoặc hộp các-tông",
+        "Ghi chú chữ 'Thủy tinh vỡ nguy hiểm' bên ngoài bọc"
+      ],
+      "combustibility": {
+        "is_combustible": false,
+        "status": "Không thể cháy (Nhiệt độ nóng chảy cực cao)",
+        "badge_color": "#0284c7",
+        "analysis": "Thủy tinh có thành phần chủ yếu là Silicat (SiO2), trơ hoàn toàn với lửa và không bắt cháy. Thủy tinh nóng chảy ở nhiệt độ rất cao (1.400 - 1.600°C), vượt xa nhiệt độ lò thiêu hủy rác sinh hoạt thông thường.",
+        "warning": "Không đưa thủy tinh vào lò đốt rác vì làm hư hại ghi lò."
+      },
+      "recyclability": {
+        "status": "recyclable",
+        "level": "Tái chế vô hạn lần",
+        "difficulty_score": "Dễ",
+        "badge_color": "#10b981",
+        "analysis": "Thủy tinh tinh khiết có thể tái sinh vô hạn lần mà không giảm chất lượng hoặc độ trong suốt. Tuy nhiên cần phân loại kỹ theo màu sắc (thủy tinh trắng, xanh, nâu) và không lẫn gốm sứ/pha lê.",
+        "economic_value": "Trung bình đến Cao — Phù hợp mô hình tái sử dụng vỏ chai (Refill)."
+      },
+      "processing_steps": [
+        "1. Tại nguồn: Rửa sạch, để khô ráo, giữ nguyên vẹn vỏ chai.",
+        "2. Thu gom: Phân loại theo 3 màu: Trắng trong, Xanh lá cây, Nâu hổ phách.",
+        "3. Nhà máy: Đập vụn thành miểng (cullet), trộn cát thạch anh và nấu chảy đúc chai mới."
+      ],
+      "environmental_impact": {
+        "decomposition_time": "Hơn 1.000.000 năm (Gần như không bao giờ phân hủy tự nhiên)",
+        "carbon_saving": "Dùng 1 tấn miểng thủy tinh tái chế giảm phát thải 315 kg CO2."
+      },
+      "mixed_material_notes": "Gốm sứ, sành và kính chịu nhiệt Pyrex có nhiệt độ nóng chảy khác nhau, không được bỏ chung vào thùng tái chế thủy tinh chai lọ.",
+      "source": "Hiệp hội Thủy tinh Việt Nam; Luật BVMT 2020",
+      "last_verified": "2026-10"
+    },
+    "organic": {
+      "id": "organic",
+      "label_vi": "Rác hữu cơ (Organic)",
+      "aliases": ["thức ăn thừa", "vỏ hoa quả", "rau củ", "lá cây", "bã cà phê", "bã trà"],
+      "bin": "Thùng rác hữu cơ (Màu xanh lá)",
+      "bin_color": "#22c55e",
+      "special_destination": null,
+      "guidance": "Bao gồm thức ăn thừa, cuống rau củ quả, bã trà, bã cà phê và lá cây. Thích hợp dùng làm phân bón hữu cơ ủ (compost) hoặc bỏ vào thùng rác hữu cơ dễ phân hủy sinh học.",
+      "preparation_requirements": [
+        "Chắt ráo hoàn toàn nước canh hoặc nước sốt thừa",
+        "Tách hoàn toàn khỏi bao bì túi nilon, hộp xốp, tăm tre",
+        "Để trong thùng rác có nắp đậy kín để ngăn mùi hôi và côn trùng",
+        "Có thể tự ủ phân compost vi sinh tại nhà nếu có điều kiện"
+      ],
+      "tips": [
+        "Tách hoàn toàn khỏi bao bì nilon, tăm tre, đồ nhựa dùng một lần",
+        "Gạn hết nước canh hoặc nước sốt thừa để giảm mùi hôi và chảy nước",
+        "Tự ủ phân compost tại nhà nếu có sân vườn hoặc thùng ủ vi sinh",
+        "Bỏ vào thùng rác hữu cơ màu xanh lá"
+      ],
+      "combustibility": {
+        "is_combustible": false,
+        "status": "Khó cháy (Độ ẩm cao 70% - 85%)",
+        "badge_color": "#16a34a",
+        "analysis": "Rác thực phẩm và phụ phẩm hữu cơ chứa lượng nước rất lớn (70-85%). Đốt rác hữu cơ tiêu tốn nhiệt lượng của lò thiêu đốt, hạ thấp nhiệt độ buồng đốt và sinh ra khói độc chứa muội ẩm.",
+        "warning": "Không nên đốt. Đốt rác ướt gây lãng phí năng lượng và ô nhiễm khói mù."
+      },
+      "recyclability": {
+        "status": "recyclable",
+        "level": "Tái sinh sinh học (Ủ Phân Vi Sinh / Biogas)",
+        "difficulty_score": "Rất dễ",
+        "badge_color": "#10b981",
+        "analysis": "Rác hữu cơ là nguồn tài nguyên dinh dưỡng tuyệt vời để ủ thành phân bón mùn hữu cơ (compost) giàu đạm/khoáng cho cây trồng, hoặc ủ kỵ khí sinh khí metan sạch (Biogas) phục vụ đun nấu và phát điện.",
+        "economic_value": "Rất thiết thực — Cải tạo đất trồng trọt và giảm phụ thuộc phân hóa học."
+      },
+      "processing_steps": [
+        "1. Tại nguồn: Chắt ráo nước, loại bỏ rác vô cơ lẫn vào.",
+        "2. Thu gom: Vận chuyển hàng ngày về nhà máy chế biến phân vi sinh.",
+        "3. Nhà máy: Ủ hiếu khí 45 ngày với chế phẩm vi sinh bản địa hoặc ủ biogas sinh điện năng."
+      ],
+      "environmental_impact": {
+        "decomposition_time": "1 - 4 tuần (Phân hủy hoàn toàn thành mùn đất dinh dưỡng)",
+        "carbon_saving": "Phân loại rác hữu cơ tránh phát thải khí nhà kính Methane (CH4) tại bãi rác lộ thiên."
+      },
+      "mixed_material_notes": "Xương động vật lớn, vỏ nghêu sò ốc cứng phân hủy rất chậm, nên đập nhỏ hoặc chuyển sang nhóm rác sinh hoạt khác.",
+      "source": "Bộ Tài nguyên & Môi trường; Hướng dẫn Kỹ thuật phân loại CTRSH tại nguồn 2023",
+      "last_verified": "2026-10"
+    },
+    "other": {
+      "id": "other",
+      "label_vi": "Rác khác / Rác sinh hoạt còn lại (Other)",
+      "aliases": ["rác sinh hoạt", "vải vụn", "da giày", "đồ gốm vỡ", "bỉm tã"],
+      "bin": "Thùng rác sinh hoạt / Rác còn lại (Màu xám/đen)",
+      "bin_color": "#64748b",
+      "special_destination": null,
+      "guidance": "Bao gồm rác tồn dư khó phân loại, cao su, da giày hỏng, vải vụn và đồ dùng hỗn hợp không tái chế được. Bỏ vào thùng rác sinh hoạt để vận chuyển đến bãi chôn lấp hợp vệ sinh hoặc nhà máy đốt rác phát điện.",
+      "preparation_requirements": [
+        "Gói chặt trong túi rác sinh hoạt",
+        "Không bỏ lẫn rác nguy hại (pin, hóa chất) vào thùng này",
+        "Để nơi khô ráo, tránh phát sinh mùi hôi"
+      ],
+      "tips": [
+        "Gói kín rác thải sinh hoạt vào túi đựng trước khi đem bỏ",
+        "KHÔNG bỏ pin, ắc quy hoặc bóng đèn vào thùng rác này",
+        "Vải vụn, da giày hỏng cần gói kín bỏ thùng rác sinh hoạt",
+        "Tham khảo lịch thu gom rác sinh hoạt tại địa phương"
+      ],
+      "combustibility": {
+        "is_combustible": true,
+        "status": "Có thể cháy (Tùy thành phần vật liệu)",
+        "badge_color": "#ea580c",
+        "analysis": "Phần lớn rác còn lại (vải tổng hợp, cao su vụn, bao bì bẩn) có nhiệt trị và thích hợp thiêu đốt trong lò đốt rác phát điện (Waste to Energy).",
+        "warning": "Không tự ý đốt hở ngoài vườn hoặc lòng đường."
+      },
+      "recyclability": {
+        "status": "not_recyclable",
+        "level": "Không tái chế được trong điều kiện thông thường",
+        "difficulty_score": "Khó",
+        "badge_color": "#dc2626",
+        "analysis": "Các vật liệu hỗn hợp nhiều lớp hoặc bị nhiễm bẩn nặng không có công nghệ tái chế kinh tế khả thi, chủ yếu đem thiêu đốt thu hồi năng lượng hoặc chôn lấp hợp vệ sinh.",
+        "economic_value": "Thấp — Tiêu tốn chi phí xử lý."
+      },
+      "processing_steps": [
+        "1. Tại nguồn: Thu gom vào túi rác gia đình.",
+        "2. Thu gom: Xe ép rác chuyên dụng chở về khu xử lý tập trung.",
+        "3. Nhà máy: Thiêu đốt phát điện (WtE) hoặc chôn lấp hợp vệ sinh."
+      ],
+      "environmental_impact": {
+        "decomposition_time": "Vải sợi tổng hợp: 50-100 năm; Da cao su: 80 năm",
+        "carbon_saving": "Xử lý qua điện rác giảm thể tích chôn lấp đến 90%."
+      },
+      "mixed_material_notes": "Rác hỗn hợp chứa nhiều tạp chất nên không thể phân loại tự động tại nguồn tái chế.",
+      "source": "Bộ Tài nguyên & Môi trường; Luật BVMT 2020",
+      "last_verified": "2026-10"
+    },
+    "battery": {
+      "id": "battery",
+      "label_vi": "Pin & Ắc quy (Chất thải nguy hại)",
+      "aliases": ["pin", "battery", "ắc quy", "pin tiểu", "pin điện thoại", "lithium"],
+      "bin": "Điểm thu gom pin cũ & Rác nguy hại riêng (KHÔNG bỏ thùng rác thường)",
+      "bin_color": "#dc2626",
+      "special_destination": "Điểm thu gom pin cũ tại Siêu thị, UBND Phường, Trường học hoặc Hệ thống thu hồi pin chuyên dụng",
+      "guidance": "CẢNH BÁO NGUY HIỂM: Tuyệt đối KHÔNG vứt pin vào thùng rác sinh hoạt hoặc thùng tái chế kim loại thông thường! Pin chứa hóa chất độc hại và có nguy cơ phát nổ, rò rỉ kim loại nặng gây ô nhiễm nguồn nước.",
+      "preparation_requirements": [
+        "Dán băng dính cách điện vào 2 đầu cực của pin để ngăn chập điện gây cháy",
+        "Lưu trữ pin cũ trong lọ thủy tinh hoặc hộp nhựa khô ráo, tránh xa tầm tay trẻ em",
+        "Tuyệt đối không đập dẹp, cạy mở hoặc đốt vỏ pin",
+        "Đem nộp trực tiếp tại các điểm thu gom pin chuyên dụng (VinMart, BigC, UBND Phường, các dự án Nhà Nhiều Lá, Green Life)"
+      ],
+      "tips": [
+        "Dán băng dính 2 cực pin để tránh chập mạch phát hỏa",
+        "Gom pin cũ vào hộp nhựa riêng tại nhà",
+        "Gửi pin đến trạm thu gom pin nguy hại của phường hoặc siêu thị",
+        "TUYỆT ĐỐI KHÔNG đốt pin hoặc vứt lẫn vào thùng rác tái chế kim loại"
+      ],
+      "combustibility": {
+        "is_combustible": true,
+        "status": "CỰC KỲ NGUY HIỂM: Nguy cơ phát nổ khi gặp nhiệt!",
+        "badge_color": "#dc2626",
+        "analysis": "Pin Lithium-ion, pin kiềm chứa chất điện phân hữu cơ dễ cháy và sinh áp suất nổ khi bị nung nóng hoặc ép nát. Đã có nhiều vụ cháy nổ xe ép rác và nhà máy phân loại do người dân vứt lẫn pin vào thùng rác thông thường.",
+        "warning": "CẢNH BÁO NỔ: Tuyệt đối không đưa pin vào nguồn nhiệt hoặc lò đốt rác!"
+      },
+      "recyclability": {
+        "status": "hazardous_special_collection",
+        "level": "Rác thải nguy hại — Quy trình tái chế luyện kim chuyên dụng",
+        "difficulty_score": "Đặc biệt nghiêm ngặt",
+        "badge_color": "#dc2626",
+        "analysis": "Pin cần được bóc tách trong các nhà máy xử lý chất thải nguy hại có giấy phép đặc biệt để thu hồi kim loại quý (Coban, Niken, Lithium) và cô lập thủy ngân, chì, cadimi an toàn.",
+        "economic_value": "Đặc thù — Chi phí thu gom và xử lý nguy hại cao."
+      },
+      "processing_steps": [
+        "1. Tại nguồn: Cách ly pin vào hộp riêng, dán băng dính 2 cực.",
+        "2. Thu gom: Chuyển giao cho đơn vị có giấy phép xử lý chất thải nguy hại (Hazardous Waste).",
+        "3. Nhà máy: Xử lý thủy luyện (hydrometallurgy) hoặc hỏa luyện chân không để thu hồi kim loại quý."
+      ],
+      "environmental_impact": {
+        "decomposition_time": "Vỏ kim loại rỉ sét trong vài năm, nhưng kim loại nặng gây ô nhiễm nguồn nước vĩnh viễn",
+        "carbon_saving": "1 viên pin cúc áo rò rỉ có thể làm ô nhiễm 500 lít nước hoặc 1 mét khối đất trong 50 năm."
+      },
+      "mixed_material_notes": "Pin là thiết bị điện hóa phức hợp, chứa vỏ kim loại ngoài nhưng lõi chứa hóa chất nguy hại, bắt buộc xử lý riêng.",
+      "source": "Thông tư 02/2022/TT-BTNMT về Quản lý chất thải nguy hại; Luật BVMT 2020",
+      "last_verified": "2026-10"
+    },
+    "e_waste": {
+      "id": "e_waste",
+      "label_vi": "Rác thải điện tử (E-Waste)",
+      "aliases": ["cell phone", "laptop", "remote", "keyboard", "mouse", "điện thoại", "chuột máy tính", "bàn phím", "đồ điện tử"],
+      "bin": "Điểm thu gom rác điện tử chuyên dụng (E-waste collection)",
+      "bin_color": "#7c3aed",
+      "special_destination": "Chương trình Việt Nam Tái Chế (Vietnam Recycles), trung tâm bảo hành hãng hoặc điểm thu gom rác điện tử",
+      "guidance": "Rác điện tử chứa linh kiện bán dẫn, chì hàn, bo mạch và kim loại quý. Cần đưa về trạm thu gom rác điện tử chuyên nghiệp để tháo dỡ an toàn, không vứt vào thùng rác sinh hoạt.",
+      "preparation_requirements": [
+        "Sao lưu và xóa sạch dữ liệu cá nhân trên thiết bị (nếu là điện thoại, máy tính)",
+        "Tháo rời pin nếu có thể để phân loại vào khay pin riêng",
+        "Giữ thiết bị nguyên vẹn, không đập vỡ màn hình để tránh phơi nhiễm thủy ngân/chì",
+        "Gom dây cáp sạc, phụ kiện đi kèm để chuyển giao cùng lúc"
+      ],
+      "tips": [
+        "Xóa dữ liệu cá nhân trước khi chuyển giao thiết bị",
+        "Tháo pin rời nếu có thể",
+        "Chuyển giao cho các điểm thu hồi của Vietnam Recycles hoặc siêu thị điện máy",
+        "Không đập nát bo mạch hoặc đốt dây điện lấy đồng tại nhà"
+      ],
+      "combustibility": {
+        "is_combustible": true,
+        "status": "Cháy sinh khí độc hại (Chống chỉ định thiêu đốt hở)",
+        "badge_color": "#dc2626",
+        "analysis": "Vỏ nhựa chống cháy (chứa hợp chất brom Halogen) và nhựa bảng mạch khi cháy sinh ra khí Brom dioxin cực độc phá hủy hệ hô hấp và hệ thần kinh.",
+        "warning": "Không đốt dây điện lấy lõi đồng hoặc thiêu đốt đồ điện tử ngoài trời!"
+      },
+      "recyclability": {
+        "status": "hazardous_special_collection",
+        "level": "Tái chế công nghệ cao (Urban Mining)",
+        "difficulty_score": "Phức tạp",
+        "badge_color": "#7c3aed",
+        "analysis": "Bảng mạch điện tử chứa tỷ lệ vàng, bạc, đồng cao gấp 10-50 lần quặng tự nhiên. Tuy nhiên đòi hỏi công nghệ bóc tách chân không hiện đại để không phát tán kim loại nặng ra môi trường.",
+        "economic_value": "Rất cao — Được các tập đoàn công nghệ và nhà máy tái chế tài nguyên đô thị săn đón."
+      },
+      "processing_steps": [
+        "1. Tại nguồn: Giữ nguyên vẹn thiết bị, mang đến điểm thu hồi e-waste.",
+        "2. Thu gom: Phân loại cơ học thành nhựa, khung kim loại và bo mạch.",
+        "3. Nhà máy: Bóc tách hóa học và điện phân thu hồi kim loại quý đạt độ tinh khiết cao."
+      ],
+      "environmental_impact": {
+        "decomposition_time": "Bo mạch và kim loại nặng không bao giờ phân hủy sinh học",
+        "carbon_saving": "Tái chế 1 tấn thiết bị di động thu hồi được tới 350g vàng và 130kg đồng."
+      },
+      "mixed_material_notes": "Rác điện tử bao gồm nhựa ABS chống cháy, kim loại nhôm/thép, kính màn hình và bo mạch hợp kim hàn chì.",
+      "source": "Nghị định 08/2022/NĐ-CP Quy định trách nhiệm tái chế sản phẩm EPR; Luật BVMT 2020",
+      "last_verified": "2026-10"
+    },
+    "composite_carton": {
+      "id": "composite_carton",
+      "label_vi": "Hộp giấy nhiều lớp (Tetra Pak / Vỏ hộp sữa)",
+      "aliases": ["vỏ hộp sữa", "hộp nước ngọt giấy", "tetra pak", "hộp giấy tráng nhôm"],
+      "bin": "Thùng rác tái chế / Điểm thu gom vỏ hộp sữa riêng",
+      "bin_color": "#0284c7",
+      "special_destination": "Điểm thu gom vỏ hộp sữa học đường hoặc thùng rác tái chế có phân loại riêng",
+      "guidance": "Hộp giấy đựng sữa có cấu tạo 6 lớp (75% giấy, 20% nhựa PE, 5% nhôm). Cần ép dẹp, cắm ống hút vào trong hoặc xếp gọn trước khi gửi đến điểm thu gom tái chế vỏ hộp sữa chuyên biệt.",
+      "preparation_requirements": [
+        "Uống cạn sữa hoặc nước trái cây",
+        "Nhét ống hút vào bên trong vỏ hộp để không bị rơi rớt",
+        "Mở hai tai hộp và ép dẹp hoàn toàn để tiết kiệm thể tích",
+        "Gửi vào điểm thu gom vỏ hộp sữa của Tetra Pak hoặc thùng rác tái chế khô"
+      ],
+      "tips": [
+        "Uống cạn và nhét ống hút vào trong hộp",
+        "Bóc 4 tai hộp và ép phẳng dẹp",
+        "Bỏ vào thùng thu gom vỏ hộp sữa tái chế"
+      ],
+      "combustibility": {
+        "is_combustible": true,
+        "status": "Cháy được (Nhiệt trị cao)",
+        "badge_color": "#ea580c",
+        "analysis": "Thành phần giấy và màng PE dễ bắt cháy nhưng nên ưu tiên thu hồi bột giấy.",
+        "warning": "Không đốt hở tại nhà."
+      },
+      "recyclability": {
+        "status": "conditionally_recyclable",
+        "level": "Tái chế có điều kiện (Yêu cầu dây chuyền thủy lực bóc tách)",
+        "difficulty_score": "Trung bình",
+        "badge_color": "#0284c7",
+        "analysis": "75% bột giấy chất lượng cao được thu hồi để làm giấy carton, 25% nhôm và nhựa PE được ép nhiệt thành tấm lợp sinh thái chống thấm dột.",
+        "economic_value": "Khá — Phụ thuộc mạng lưới thu gom vỏ hộp sữa chuyên biệt."
+      },
+      "processing_steps": [
+        "1. Tại nguồn: Ép dẹp, giữ khô.",
+        "2. Thu gom: Tập kết về trạm ép kiện vỏ hộp sữa.",
+        "3. Nhà máy: Đánh bột thu hồi xơ sợi giấy và ép nhiệt màng nhôm-nhựa làm tấm lợp."
+      ],
+      "environmental_impact": {
+        "decomposition_time": "Màng nhôm và nhựa PE cần hơn 100 năm để phân hủy",
+        "carbon_saving": "Tái chế vỏ hộp sữa giúp giảm 50% lượng phát thải carbon so với sản xuất tấm lợp mới."
+      },
+      "mixed_material_notes": "Cấu trúc sandwich 6 lớp gồm giấy, nhôm và polyethylene liên kết chặt chẽ.",
+      "source": "Tetra Pak Vietnam; Liên minh Tái chế Bao bì Việt Nam (PRO Vietnam)",
+      "last_verified": "2026-10"
+    }
+  }
+}
+

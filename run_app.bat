@@ -3,6 +3,7 @@ chcp 65001 >nul
 setlocal enabledelayedexpansion
 title AI Waste Recognition System
 
+REM Di chuyen den thu muc chua file bat
 cd /d "%~dp0"
 
 echo ==============================================================================
@@ -36,19 +37,23 @@ if not exist "frontend\node_modules" (
     cd /d "%~dp0"
 )
 
-REM 3. Tu dong tim dia chi IP Wi-Fi hoac LAN
+REM 3. Tu dong tim dia chi IP Wi-Fi hoac LAN an toan
 set "LOCAL_IP=127.0.0.1"
-for /f "tokens=2 delims=:" %%A in ('ipconfig ^| find "IPv4"') do (
-    for /f "tokens=1" %%B in ("%%A") do (
-        if not "%%B"=="127.0.0.1" set "LOCAL_IP=%%B"
+for /f "tokens=2 delims=:" %%A in ('ipconfig ^| findstr /i "IPv4"') do (
+    for /f "tokens=1 delims=( " %%B in ("%%A") do (
+        set "CANDIDATE_IP=%%B"
+        set "CANDIDATE_IP=!CANDIDATE_IP: =!"
+        if not "!CANDIDATE_IP!"=="127.0.0.1" (
+            if not "!CANDIDATE_IP!"=="" set "LOCAL_IP=!CANDIDATE_IP!"
+        )
     )
 )
 
 echo [1/3] Dang khoi dong Backend API - FastAPI tren Port 8000...
-start "AI Backend - Port 8000" cmd /k "chcp 65001 >nul & cd /d "%~dp0" & echo ======================================== & echo   AI BACKEND FASTAPI - Port 8000 & echo ======================================== & echo. & backend\.venv\Scripts\python.exe -m uvicorn backend.app.main:app --host 0.0.0.0 --port 8000 --reload"
+start "AI Backend - Port 8000" cmd /k "chcp 65001 >nul & echo ======================================== & echo   AI BACKEND FASTAPI - Port 8000 & echo ======================================== & echo. & backend\.venv\Scripts\python.exe -m uvicorn backend.app.main:app --host 0.0.0.0 --port 8000 --reload"
 
 echo [2/3] Dang khoi dong Frontend Web - React Vite tren Port 5173...
-start "AI Frontend - Port 5173" cmd /k "chcp 65001 >nul & cd /d "%~dp0frontend" & echo ======================================== & echo   AI FRONTEND REACT VITE - Port 5173 & echo ======================================== & echo. & npm run dev"
+start "AI Frontend - Port 5173" cmd /k "chcp 65001 >nul & cd /d "%~dp0frontend" & echo ======================================== & echo   AI FRONTEND REACT VITE - Port 5173 & echo ======================================== & echo. & npm run dev -- --host"
 
 echo [3/3] Dang mo trinh duyet den giao dien he thong...
 timeout /t 3 /nobreak >nul 2>&1

@@ -493,7 +493,7 @@ def run_training():
 
     # 3. Đánh giá độc lập trên Test Set bằng mô hình tốt nhất
     print(f"\n[ĐÁNH GIÁ ĐỘC LẬP] Đang tải checkpoint tốt nhất (Epoch {best_epoch}) để kiểm thử trên Test set...")
-    best_checkpoint = torch.load(best_checkpoint_path, map_location=device, weights_only=True)
+    best_checkpoint = torch.load(best_checkpoint_path, map_location=device, weights_only=False)
     model.load_state_dict(best_checkpoint["state_dict"])
 
     test_results = evaluate_test_set(model, test_loader, device)

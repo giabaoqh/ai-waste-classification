@@ -14,6 +14,7 @@ const CLASS_META = {
   glass: { icon: '🍾', label: 'Thủy tinh', color: '#06b6d4' },
   organic: { icon: '🍎', label: 'Hữu cơ', color: '#22c55e' },
   other: { icon: '🗑️', label: 'Khác / Hỗn hợp', color: '#64748b' },
+  unsupported_non_waste: { icon: '⚠️', label: 'Không phải rác / Ngoại lai', color: '#dc2626' },
 };
 
 function formatDate(isoString) {
@@ -110,6 +111,18 @@ export default function App() {
   const [recyclingCenters, setRecyclingCenters] = useState([]);
   const [filterCity, setFilterCity] = useState('');
   const [filterMaterial, setFilterMaterial] = useState('');
+  // Multi-Object Detection States (Tab: 'detect')
+  const [detectFile, setDetectFile] = useState(null);
+  const [detectPreview, setDetectPreview] = useState(null);
+  const [isDetectLoading, setIsDetectLoading] = useState(false);
+  const [detectResult, setDetectResult] = useState(null);
+  const [detectError, setDetectError] = useState(null);
+  const [detectViewMode, setDetectViewMode] = useState('annotated'); // 'annotated' | 'original'
+  const [detectInputMode, setDetectInputMode] = useState('upload'); // 'upload' | 'url'
+  const [detectUrlInput, setDetectUrlInput] = useState('');
+  const [detectFilterCategory, setDetectFilterCategory] = useState(null);
+  const detectFileInputRef = useRef(null);
+
 
   useEffect(() => {
     async function checkHealth() {
@@ -209,6 +222,97 @@ export default function App() {
       }
     } catch (err) {
       console.error(err);
+    }
+  };
+
+    const handleDetectFileSelect = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith('image/')) {
+      setDetectError('Vui lòng chọn tệp hình ảnh hợp lệ (JPEG, PNG, WEBP).');
+      return;
+    }
+    setDetectFile(file);
+    setDetectError(null);
+    setDetectResult(null);
+    setDetectFilterCategory(null);
+    const reader = new FileReader();
+    reader.onload = () => setDetectPreview(reader.result);
+    reader.readAsDataURL(file);
+  };
+
+  const handleRunDetect = async () => {
+    if (!detectFile) {
+      setDetectError('Vui lòng chọn ảnh trước khi phát hiện.');
+      return;
+    }
+    setIsDetectLoading(true);
+    setDetectError(null);
+    setDetectFilterCategory(null);
+    const formData = new FormData();
+    formData.append('file', detectFile);
+
+    try {
+      const res = await fetch(`${BACKEND_URL}/api/detect`, {
+        method: 'POST',
+        body: formData,
+      });
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.detail || `Lỗi máy chủ (${res.status})`);
+      }
+      const data = await res.json();
+      setDetectResult(data);
+      setDetectViewMode(data.annotated_image ? 'annotated' : 'original');
+      showToast(`Đã quét xong: Phát hiện ${data.total_objects} vật thể rác.`);
+    } catch (err) {
+      setDetectError(err.message || 'Không thể thực hiện phát hiện đa vật thể.');
+    } finally {
+      setIsDetectLoading(false);
+    }
+  };
+
+  const handleRunDetectUrl = async () => {
+    if (!detectUrlInput.trim()) {
+      setDetectError('Vui lòng nhập đường dẫn URL ảnh.');
+      return;
+    }
+    setIsDetectLoading(true);
+    setDetectError(null);
+    setDetectResult(null);
+    setDetectFilterCategory(null);
+    setDetectPreview(detectUrlInput.trim());
+
+    try {
+      const res = await fetch(`${BACKEND_URL}/api/detect/url`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ image_url: detectUrlInput.trim() }),
+      });
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.detail || `Lỗi máy chủ (${res.status})`);
+      }
+      const data = await res.json();
+      setDetectResult(data);
+      setDetectViewMode(data.annotated_image ? 'annotated' : 'original');
+      showToast(`Đã quét xong: Phát hiện ${data.total_objects} vật thể rác.`);
+    } catch (err) {
+      setDetectError(err.message || 'Không thể tải ảnh từ URL để phát hiện.');
+    } finally {
+      setIsDetectLoading(false);
+    }
+  };
+
+  const handleResetDetect = () => {
+    setDetectFile(null);
+    setDetectPreview(null);
+    setDetectResult(null);
+    setDetectError(null);
+    setDetectUrlInput('');
+    setDetectFilterCategory(null);
+    if (detectFileInputRef.current) {
+      detectFileInputRef.current.value = '';
     }
   };
 
@@ -468,6 +572,15 @@ export default function App() {
             <span className="tab-icon">🔍</span>
             <span>Phân Loại Rác</span>
           </button>
+          <button
+            type="button"
+            className={`tab-btn ${activeTab === 'detect' ? 'active' : ''}`}
+            onClick={() => handleTabChange('detect')}
+          >
+            <span className="tab-icon">🎯</span>
+            <span>Phát Hiện Đa Vật Thể</span>
+          </button>
+
           <button
             type="button"
             className={`tab-btn ${activeTab === 'history' ? 'active' : ''}`}
@@ -824,7 +937,57 @@ export default function App() {
 
             {result && (
               <div>
-                {/* Hero Prediction Header */}
+                {/* Non-Waste / OOD Warning Alert */}
+                {result.is_waste_detected === false ? (
+                  <div style={{ padding: "20px", borderRadius: "12px", background: "var(--card-bg, #fff)", border: "2px solid #ef4444", margin: "8px 0" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: "14px", marginBottom: "14px" }}>
+                      <div style={{ fontSize: "40px" }}>
+                        {result.detection_status === "person_detected" ? "🧍‍♂️" :
+                         result.detection_status === "pet_detected" ? "🐕" :
+                         result.detection_status === "furniture_detected" ? "🛋️" :
+                         result.detection_status === "scenery_detected" ? "🏞️" : "⚠️"}
+                      </div>
+                      <div>
+                        <div style={{ fontSize: "18px", fontWeight: 700, color: "#dc2626" }}>
+                          Phát Hiện Đối Tượng Ngoại Lai (Không Phải Rác Thải)
+                        </div>
+                        <div style={{ fontSize: "13px", color: "#64748b" }}>
+                          Trạng thái kiểm định: <span className="uncertain-tag" style={{ marginLeft: "4px" }}>{result.detection_status}</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="alert alert-danger" style={{ marginBottom: "12px", lineHeight: "1.6" }}>
+                      <strong>Lý do từ chối:</strong> {result.rejection_reason || "Hình ảnh chứa người, động vật hoặc đồ vật gia đình không thuộc danh mục rác thải."}
+                    </div>
+
+                    <div className="alert alert-warning" style={{ marginBottom: "16px", lineHeight: "1.6" }}>
+                      💡 <strong>Khuyến nghị chụp lại:</strong> {result.suggested_action || "Vui lòng chỉ chụp cận cảnh một vật thể rác thải sinh hoạt (chai lọ, vỏ lon, túi giấy, thức ăn thừa...)."} 
+                    </div>
+
+                    <div style={{ padding: "14px", background: "var(--bg-secondary, #f8fafc)", borderRadius: "8px", fontSize: "13px", color: "#475569", lineHeight: "1.6" }}>
+                      <div style={{ fontWeight: 600, color: "#334155", marginBottom: "6px" }}>📌 Quy tắc an toàn & giải thích kỹ thuật:</div>
+                      <div>• Để bảo đảm độ tin cậy và không nhận diện sai người, thú cưng hoặc nội thất thành rác tái chế, hệ thống kích hoạt cơ chế <strong>Semantic Gatekeeper</strong> để từ chối các phân loại không có cơ sở.</div>
+                      <div>• Hãy đặt riêng vật thể rác lên mặt phẳng (bàn hoặc sàn) và chụp trực diện, chiếm ít nhất 50% khung hình.</div>
+                    </div>
+
+                    <button
+                      type="button"
+                      className="btn-primary"
+                      style={{ marginTop: "16px", width: "100%" }}
+                      onClick={() => {
+                        setResult(null);
+                        setSelectedFile(null);
+                        setPreviewUrl(null);
+                        setImageUrlInput("");
+                      }}
+                    >
+                      🔄 Chụp / Chọn Lại Ảnh Rác Khác
+                    </button>
+                  </div>
+                ) : (
+                  <div>
+                    {/* Hero Prediction Header */}
                 <div className="prediction-hero">
                   <div className="prediction-hero-header">
                     <div className="prediction-class-title">
@@ -835,13 +998,42 @@ export default function App() {
                       {result.is_uncertain && (
                         <span className="uncertain-tag">⚠️ Cần kiểm tra lại</span>
                       )}
-                      <span className={`confidence-badge ${result.is_uncertain ? 'uncertain' : ''}`}>
-                        {(result.confidence * 100).toFixed(1)}%
-                      </span>
+                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '3px' }}>
+                        <span className={`confidence-badge ${result.is_uncertain ? 'uncertain' : ''}`} title="Độ tin cậy thô từ hàm Softmax">
+                          {(result.confidence * 100).toFixed(1)}% (Raw)
+                        </span>
+                        {result.calibrated_confidence !== undefined && result.calibrated_confidence !== null && (
+                          <span 
+                            style={{ 
+                              fontSize: '11px', 
+                              color: '#065f46', 
+                              fontWeight: 600, 
+                              background: '#d1fae5', 
+                              padding: '2px 7px', 
+                              borderRadius: '4px', 
+                              border: '1px solid #6ee7b7' 
+                            }} 
+                            title="Độ tin cậy sau hiệu chuẩn nhiệt độ (Temperature Scaling T=1.6366, giảm sai số ECE còn 1.19%)"
+                          >
+                            🎯 {(result.calibrated_confidence * 100).toFixed(1)}% (Hiệu chuẩn)
+                          </span>
+                        )}
+                      </div>
                     </div>
                   </div>
-                  <div style={{ fontSize: '11px', color: '#047857', marginTop: '6px' }}>
-                    * Độ tin cậy tính qua hàm Softmax trên 6 nhóm rác thải chuẩn.
+                  {result.recommendation?.is_override_applied && (
+                    <div style={{ marginTop: '10px', padding: '10px 14px', background: '#fef2f2', border: '1px solid #fecaca', borderRadius: '8px', fontSize: '12.5px', color: '#991b1b', lineHeight: 1.5 }}>
+                      <strong>🚨 Cơ chế an toàn kích hoạt:</strong> {result.recommendation.override_reason}
+                    </div>
+                  )}
+                  {result.uncertainty_note && (
+                    <div style={{ marginTop: '8px', padding: '8px 12px', background: '#fffbeb', border: '1px solid #fde68a', borderRadius: '6px', fontSize: '12px', color: '#92400e' }}>
+                      <strong>ℹ️ Lưu ý phân loại:</strong> {result.uncertainty_note}
+                    </div>
+                  )}
+                  <div style={{ fontSize: '11px', color: '#047857', marginTop: '6px', display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: '4px' }}>
+                    <span>* Phân tích phân bổ xác suất trên 6 nhóm danh mục rác tiêu chuẩn.</span>
+                    {result.calibrated_confidence && <span>* Hiệu chuẩn ECE 1.19% (T*=1.6366).</span>}
                   </div>
                 </div>
 
@@ -908,6 +1100,42 @@ export default function App() {
                         <div>⏳ <strong>Thời gian phân hủy tự nhiên:</strong> {result.recommendation.environmental_impact.decomposition_time}</div>
                         <div style={{ color: '#059669', marginTop: '3px' }}>🌱 <strong>Lợi ích môi trường:</strong> {result.recommendation.environmental_impact.carbon_saving}</div>
                       </div>
+                    )}
+                  </div>
+                )}
+
+                
+                {/* Special Destination (Hazardous / E-Waste) */}
+                {result.recommendation?.special_destination && (
+                  <div className="alert alert-danger" style={{ marginTop: '12px', background: '#fef2f2', border: '1px solid #f87171', color: '#991b1b' }}>
+                    <strong>📍 Điểm thu gom đặc thù bắt buộc:</strong>
+                    <div style={{ marginTop: '4px', fontSize: '13px' }}>{result.recommendation.special_destination}</div>
+                  </div>
+                )}
+
+                {/* Preparation Requirements */}
+                {result.recommendation?.preparation_requirements && result.recommendation.preparation_requirements.length > 0 && (
+                  <div className="steps-container" style={{ marginTop: '12px' }}>
+                    <div className="steps-title">🧤 Yêu Cầu Chuẩn Bị & An Toàn Trước Khi Bỏ:</div>
+                    {result.recommendation.preparation_requirements.map((req, rIdx) => (
+                      <div key={rIdx} className="step-item" style={{ fontSize: '12.5px' }}>✓ {req}</div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Mixed Material Notes */}
+                {result.recommendation?.mixed_material_notes && (
+                  <div style={{ marginTop: '10px', fontSize: '12px', color: 'var(--text-muted)', fontStyle: 'italic', background: 'var(--surface)', padding: '8px 12px', borderRadius: '6px', border: '1px solid var(--border)' }}>
+                    ℹ️ <strong>Lưu ý vật liệu hỗn hợp:</strong> {result.recommendation.mixed_material_notes}
+                  </div>
+                )}
+
+                {/* Legal Jurisdiction & Source Attribution */}
+                {result.recommendation?.jurisdiction && (
+                  <div style={{ marginTop: '10px', display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: '6px', fontSize: '11px', color: 'var(--text-muted)', padding: '6px 10px', background: '#f8fafc', borderRadius: '6px', border: '1px solid var(--border)' }}>
+                    <span>⚖️ <strong>Căn cứ:</strong> {result.recommendation.jurisdiction}</span>
+                    {result.recommendation.source && (
+                      <span>📖 <strong>Nguồn:</strong> {result.recommendation.source}</span>
                     )}
                   </div>
                 )}
@@ -1079,11 +1307,366 @@ export default function App() {
                     </div>
                   </div>
                 )}
+                  </div>
+                )}
               </div>
             )}
           </div>
         </div>
       )}
+
+            {/* ==================================================================== */}
+      {/* TAB: MULTI-OBJECT DETECTION VIEW                                    */}
+      {/* ==================================================================== */}
+      {activeTab === 'detect' && (
+        <div className="detect-tab-container">
+          <div className="detect-header-card">
+            <div className="detect-header-title">
+              <span style={{ fontSize: '2rem' }}>🎯</span>
+              <div>
+                <h2>Phát Hiện & Khoanh Vùng Đa Vật Thể Rác Thải</h2>
+                <p style={{ color: 'var(--text-muted)', fontSize: '13.5px', marginTop: '4px' }}>
+                  Định vị đồng thời nhiều vật thể rác trong cùng một bức ảnh, gán bounding box màu đỏ và phân loại theo 6 danh mục rác thải chuẩn.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div className="main-grid">
+            {/* Cột trái: Tải ảnh & Xem ảnh chú thích */}
+            <div className="upload-section">
+              <div className="card">
+                <div style={{ display: 'flex', gap: '8px', marginBottom: '16px' }}>
+                  <button
+                    type="button"
+                    className={`btn ${detectInputMode === 'upload' ? 'btn-primary' : 'btn-outline'}`}
+                    style={{ flex: 1, padding: '8px 12px', fontSize: '13px' }}
+                    onClick={() => setDetectInputMode('upload')}
+                  >
+                    📁 Tải tệp lên
+                  </button>
+                  <button
+                    type="button"
+                    className={`btn ${detectInputMode === 'url' ? 'btn-primary' : 'btn-outline'}`}
+                    style={{ flex: 1, padding: '8px 12px', fontSize: '13px' }}
+                    onClick={() => setDetectInputMode('url')}
+                  >
+                    🔗 Nhập URL ảnh
+                  </button>
+                </div>
+
+                {detectInputMode === 'upload' ? (
+                  <div
+                    className="dropzone"
+                    style={{ minHeight: '220px', cursor: 'pointer' }}
+                    onClick={() => detectFileInputRef.current?.click()}
+                  >
+                    <input
+                      ref={detectFileInputRef}
+                      type="file"
+                      accept="image/*"
+                      style={{ display: 'none' }}
+                      onChange={handleDetectFileSelect}
+                    />
+                    {detectPreview ? (
+                      <div style={{ width: '100%', textAlign: 'center' }}>
+                        <div className="detect-view-toggle-bar">
+                          <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-muted)' }}>
+                            {detectResult?.annotated_image ? 'Chế độ xem ảnh:' : 'Ảnh xem trước:'}
+                          </span>
+                          {detectResult?.annotated_image && (
+                            <div className="xai-view-tabs">
+                              <button
+                                type="button"
+                                className={`xai-tab-btn ${detectViewMode === 'annotated' ? 'active' : ''}`}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setDetectViewMode('annotated');
+                                }}
+                              >
+                                🔴 Ảnh Bounding Box
+                              </button>
+                              <button
+                                type="button"
+                                className={`xai-tab-btn ${detectViewMode === 'original' ? 'active' : ''}`}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setDetectViewMode('original');
+                                }}
+                              >
+                                🖼️ Ảnh Gốc
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                        <img
+                          src={detectViewMode === 'annotated' && detectResult?.annotated_image ? detectResult.annotated_image : detectPreview}
+                          alt="Preview"
+                          style={{
+                            maxWidth: '100%',
+                            maxHeight: '360px',
+                            objectFit: 'contain',
+                            borderRadius: '8px',
+                            border: '1px solid var(--border)'
+                          }}
+                        />
+                        <p style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '8px' }}>
+                          Nhấp để chọn ảnh khác
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="dropzone-content">
+                        <span className="dropzone-icon">🎯</span>
+                        <p className="dropzone-text">Kéo thả ảnh chứa nhiều vật thể rác vào đây</p>
+                        <p className="dropzone-hint">Hỗ trợ ảnh chai nhựa, lon nhôm, thức ăn thừa, hộp carton... (PNG, JPG, WEBP)</p>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div style={{ marginBottom: '16px' }}>
+                    <div style={{ display: 'flex', gap: '8px' }}>
+                      <input
+                        type="url"
+                        className="form-input"
+                        placeholder="Dán link ảnh (http:// hoặc https://)..."
+                        value={detectUrlInput}
+                        onChange={(e) => setDetectUrlInput(e.target.value)}
+                        style={{ flex: 1, padding: '10px 14px', borderRadius: '8px', border: '1px solid var(--border)' }}
+                      />
+                      <button
+                        type="button"
+                        className="btn btn-primary"
+                        onClick={handleRunDetectUrl}
+                        disabled={isDetectLoading}
+                      >
+                        {isDetectLoading ? 'Đang tải...' : 'Phát hiện'}
+                      </button>
+                    </div>
+                    {detectPreview && (
+                      <div style={{ marginTop: '14px', textAlign: 'center' }}>
+                        {detectResult?.annotated_image && (
+                          <div className="detect-view-toggle-bar">
+                            <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-muted)' }}>Chế độ xem:</span>
+                            <div className="xai-view-tabs">
+                              <button
+                                type="button"
+                                className={`xai-tab-btn ${detectViewMode === 'annotated' ? 'active' : ''}`}
+                                onClick={() => setDetectViewMode('annotated')}
+                              >
+                                🔴 Ảnh Bounding Box
+                              </button>
+                              <button
+                                type="button"
+                                className={`xai-tab-btn ${detectViewMode === 'original' ? 'active' : ''}`}
+                                onClick={() => setDetectViewMode('original')}
+                              >
+                                🖼️ Ảnh Gốc
+                              </button>
+                            </div>
+                          </div>
+                        )}
+                        <img
+                          src={detectViewMode === 'annotated' && detectResult?.annotated_image ? detectResult.annotated_image : detectPreview}
+                          alt="URL preview"
+                          style={{ maxWidth: '100%', maxHeight: '360px', objectFit: 'contain', borderRadius: '8px' }}
+                        />
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {detectInputMode === 'upload' && detectFile && (
+                  <div style={{ marginTop: '16px', display: 'flex', gap: '10px' }}>
+                    <button
+                      type="button"
+                      className="btn btn-primary"
+                      style={{ flex: 2, padding: '12px', fontWeight: 700 }}
+                      onClick={handleRunDetect}
+                      disabled={isDetectLoading}
+                    >
+                      {isDetectLoading ? '⏳ Đang quét & phân loại đa vật thể...' : '🎯 Quét & Phân Loại Ngay'}
+                    </button>
+                    <button
+                      type="button"
+                      className="btn btn-outline"
+                      style={{ flex: 1 }}
+                      onClick={handleResetDetect}
+                      disabled={isDetectLoading}
+                    >
+                      🔄 Đổi ảnh
+                    </button>
+                  </div>
+                )}
+
+                {detectError && (
+                  <div className="alert alert-danger" style={{ marginTop: '14px' }}>
+                    <span>⚠️ {detectError}</span>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Cột phải: Kết quả nhận diện & Phân loại đa vật thể */}
+            <div className="results-section">
+              {isDetectLoading ? (
+                <div className="card loading-card" style={{ textAlign: 'center', padding: '48px 24px' }}>
+                  <div className="spinner" style={{ margin: '0 auto 16px' }} />
+                  <h3>Đang chạy mô hình AI hai giai đoạn...</h3>
+                  <p style={{ color: 'var(--text-muted)', fontSize: '13.5px', marginTop: '6px' }}>
+                    Giai đoạn 1: SSDLite320 định vị bounding box & Non-Maximum Suppression<br/>
+                    Giai đoạn 2: MobileNetV3-Large phân loại chính xác danh mục rác thải
+                  </p>
+                </div>
+              ) : detectResult ? (
+                <div>
+                  {/* Banner tóm tắt */}
+                  <div className="detect-summary-banner">
+                    <div>
+                      <div className="detect-total-count">
+                        <span>🎯</span>
+                        <span>Phát hiện {detectResult.total_objects} vật thể rác</span>
+                      </div>
+                      <div className="detect-chips-wrapper">
+                        {Object.entries(detectResult.category_counts).map(([catKey, count]) => {
+                          const labels = {
+                            plastic: 'Nhựa',
+                            paper: 'Giấy',
+                            metal: 'Kim loại',
+                            glass: 'Thủy tinh',
+                            organic: 'Hữu cơ',
+                            other: 'Khác'
+                          };
+                          const isFiltered = detectFilterCategory === catKey;
+                          return (
+                            <button
+                              key={catKey}
+                              type="button"
+                              className={`detect-category-chip ${count > 0 ? 'active' : ''} ${isFiltered ? 'filter-active' : ''}`}
+                              style={{
+                                cursor: count > 0 ? 'pointer' : 'default',
+                                opacity: count > 0 ? 1 : 0.6,
+                                outline: isFiltered ? '2px solid #ef4444' : 'none'
+                              }}
+                              onClick={() => {
+                                if (count > 0) {
+                                  setDetectFilterCategory(isFiltered ? null : catKey);
+                                }
+                              }}
+                              title={count > 0 ? `Nhấp để lọc chỉ hiển thị nhóm ${labels[catKey]}` : ''}
+                            >
+                              <span>{labels[catKey] || catKey}:</span>
+                              <strong>{count}</strong>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                    {detectResult.processing_time_ms && (
+                      <div className="detect-time-badge">
+                        ⚡ {detectResult.processing_time_ms} ms
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Cảnh báo phi rác nếu có người hoặc động vật */}
+                  {detectResult.has_non_waste && (
+                    <div className="alert alert-warning" style={{ marginBottom: '16px' }}>
+                      <strong>ℹ️ Lưu ý đối tượng phi rác:</strong> Phát hiện {detectResult.non_waste_objects.length} đối tượng không phải rác
+                      ({detectResult.non_waste_objects.map(o => o.class_name).join(', ')}). Hệ thống đã tự động lọc bỏ an toàn.
+                    </div>
+                  )}
+
+                  {/* Trạng thái không tìm thấy rác */}
+                  {detectResult.total_objects === 0 && (
+                    <div className="card" style={{ textAlign: 'center', padding: '36px 20px' }}>
+                      <span style={{ fontSize: '2.5rem' }}>🔍</span>
+                      <h3 style={{ marginTop: '12px' }}>Không phát hiện vật thể rác nào trong ảnh</h3>
+                      <p style={{ color: 'var(--text-muted)', fontSize: '13.5px', marginTop: '6px' }}>
+                        Ảnh có thể bị mờ, góc chụp quá xa hoặc không chứa các vật thể rác có hình dạng định hình. Vui lòng chụp gần hơn và đủ sáng.
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Danh sách từng vật thể rác được phát hiện */}
+                  {detectResult.objects
+                    .filter(item => !detectFilterCategory || item.waste_class === detectFilterCategory)
+                    .map((item) => (
+                      <div key={item.index} className="detect-object-card">
+                        <div className="detect-object-card-header">
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <span className="detect-index-tag">#{item.index}</span>
+                            <h4 style={{ margin: 0, fontSize: '1.05rem', color: 'var(--text-main)' }}>
+                              {item.label_vi}
+                            </h4>
+                            <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
+                              ({item.detector_label_vi})
+                            </span>
+                          </div>
+                          <span
+                            className="badge"
+                            style={{
+                              background: item.recommendation.bin_color || '#10b981',
+                              color: '#ffffff',
+                              padding: '4px 10px',
+                              borderRadius: '6px',
+                              fontSize: '11.5px',
+                              fontWeight: 700
+                            }}
+                          >
+                            {item.recommendation.bin}
+                          </span>
+                        </div>
+
+                        {/* Phân tách 2 chỉ số Confidence */}
+                        <div className="detect-confidence-grid">
+                          <div className="confidence-metric-box">
+                            <span className="confidence-metric-label">🎯 Định vị (SSDLite)</span>
+                            <span className="confidence-metric-val">{(item.detector_confidence * 100).toFixed(1)}%</span>
+                          </div>
+                          <div className="confidence-metric-box">
+                            <span className="confidence-metric-label">🧠 Phân loại (MobileNetV3)</span>
+                            <span className="confidence-metric-val" style={{ color: '#059669' }}>
+                              {(item.classifier_confidence * 100).toFixed(1)}%
+                            </span>
+                          </div>
+                          <div className="confidence-metric-box">
+                            <span className="confidence-metric-label">📐 Tọa độ Bounding Box</span>
+                            <span className="confidence-metric-val" style={{ fontSize: '11px', fontFamily: 'monospace' }}>
+                              [{item.bbox.join(', ')}]
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* Hướng dẫn xử lý & Mẹo phân loại */}
+                        <div style={{ fontSize: '13px', color: 'var(--text-muted)', marginTop: '8px' }}>
+                          <p style={{ marginBottom: '6px' }}>
+                            <strong style={{ color: 'var(--text-main)' }}>💡 Hướng dẫn:</strong> {item.recommendation.guidance}
+                          </p>
+                          {item.recommendation.tips && item.recommendation.tips.length > 0 && (
+                            <ul style={{ paddingLeft: '18px', margin: '4px 0 0' }}>
+                              {item.recommendation.tips.map((tip, tIdx) => (
+                                <li key={tIdx} style={{ fontSize: '12px', marginBottom: '2px' }}>{tip}</li>
+                              ))}
+                            </ul>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                </div>
+              ) : (
+                <div className="card" style={{ textAlign: 'center', padding: '40px 20px' }}>
+                  <span style={{ fontSize: '2.5rem' }}>🎯</span>
+                  <h3 style={{ marginTop: '12px' }}>Chưa có ảnh nào được phân tích</h3>
+                  <p style={{ color: 'var(--text-muted)', fontSize: '13.5px', marginTop: '6px' }}>
+                    Tải lên một bức ảnh chứa một hoặc nhiều món rác thải để xem hệ thống định vị từng vật thể và gán nhãn phân loại tự động.
+                  </p>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
 
       {/* ==================================================================== */}
       {/* TAB 2: PREDICTION HISTORY VIEW                                       */}
