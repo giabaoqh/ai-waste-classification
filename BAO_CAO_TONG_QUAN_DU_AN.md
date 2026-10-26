@@ -138,11 +138,43 @@ Hệ thống cho phép quét một bức ảnh chứa nhiều vật thể rác n
 
 ---
 
-### 4.5. Giải Thích Quyết Định AI (Explainable AI - Grad-CAM)
-* Sử dụng đạo hàm của lớp đặc trưng cuối cùng (`features[-1]`) để tạo nhiệt đồ màu (Jet Colormap):
-  * Vùng màu **Đỏ / Vàng:** Nơi nơ-ron mạng tập trung cao độ (nhãn hiệu chai, nắp kim loại, mép rách giấy).
-  * Vùng màu **Xanh lam / Tối:** Vùng nền xung quanh bị mạng bỏ qua.
-* Giúp người dùng và giảng viên kiểm chứng AI nhìn vào chi tiết thật của rác chứ không phải nhìn vào nền ảnh.
+### 4.5. Bản Chất Nhận Diện Của AI Qua Lớp Phủ Nhiệt & Heatmap (Explainable AI - Grad-CAM)
+
+#### a. Bản chất cốt lõi: Lớp phủ nhiệt (Heatmap) thực chất là gì?
+* **Không phải cảm biến nhiệt vật lý:** Lớp phủ nhiệt trong hệ thống không đo nhiệt độ độ C, mà là kết quả của kỹ thuật **Trí tuệ nhân tạo có thể giải thích (Explainable AI - XAI)** dựa trên giải thuật **Grad-CAM (Gradient-weighted Class Activation Mapping)**.
+* **Xóa bỏ định kiến "Hộp đen" (Black-Box):** Bình thường, mạng nơ-ron sâu đưa ra nhãn dự đoán kèm xác suất (ví dụ `plastic 98%`) mà không cho biết lý do. Heatmap chiếu sáng trực tiếp các vùng pixel không gian trong bức ảnh đã kích hoạt mạnh nhất các nơ-ron ra quyết định, biến AI thành **"Hộp kính trong suốt" (Glass-Box)**.
+
+#### b. Ý nghĩa các dải màu trên Heatmap (Bảng màu Jet Colormap)
+Thuật toán ánh xạ cường độ kích hoạt qua bảng màu nhiệt Jet và hòa trộn đè lên ảnh gốc (Alpha Blending tỷ lệ 45%):
+```
+[Xanh lam đậm / Tối] ──► [Xanh lục] ──► [Vàng rực] ──► [Đỏ rực / Đỏ tươi]
+(Hoàn toàn bỏ qua)    (Ít quan trọng)  (Chú ý cao)   (Quyết định cốt lõi)
+```
+* **Vùng Đỏ rực / Vàng rực (Cường độ cao nhất):** Nơi mạng nơ-ron tập trung năng lượng cao độ để đưa ra quyết định (ví dụ: mép vặn nắp chai nhựa, khoen mở lon nhôm, cùi cuống quả táo). Nếu che hoặc xóa vùng này, điểm số dự đoán của AI sẽ giảm sút nghiêm trọng.
+* **Vùng Xanh lục (Cường độ trung bình):** Các chi tiết hỗ trợ nhận diện ngữ cảnh xung quanh vật thể.
+* **Vùng Xanh lam đậm / Tối đen (Cường độ = 0):** Vùng AI hoàn toàn "bỏ qua" và không sử dụng làm căn cứ (mặt bàn, nền đất, tường nhà, bóng đổ).
+
+#### c. Bản chất toán học 4 bước của giải thuật Grad-CAM (trong file `backend/app/gradcam.py`):
+1. **Trích xuất bản đồ đặc trưng không gian ($A^k$):**  
+   Tại tầng tích chập sâu nhất của MobileNetV3-Large (`model.features[-1]`), mạng lưu giữ thông tin ngữ nghĩa hình ảnh phong phú nhất với **960 kênh đặc trưng (channels)** kích thước không gian $7 \times 7$ pixel. Mỗi kênh được ký hiệu là $A^k$.
+2. **Tính đạo hàm lan truyền ngược (Backpropagation Gradients):**  
+   Tính đạo hàm riêng của điểm số logit $y^c$ (cho lớp rác $c$) theo từng phần tử của bản đồ đặc trưng:
+   $$\frac{\partial y^c}{\partial A^k_{i,j}}$$
+   *Ý nghĩa:* Đạo hàm này cho biết nếu pixel tại tọa độ $(i, j)$ của kênh $k$ thay đổi nhẹ, điểm số phân loại rác $c$ sẽ tăng hay giảm bao nhiêu.
+3. **Tính trọng số quan trọng $\alpha_k^c$ (Global Average Pooling):**  
+   Lấy trung bình cộng đạo hàm trên toàn bộ không gian chiều cao $H$ và chiều rộng $W$:
+   $$\alpha_k^c = \frac{1}{Z} \sum_{i=1}^H \sum_{j=1}^W \frac{\partial y^c}{\partial A^k_{i,j}}$$
+   *Ý nghĩa:* $\alpha_k^c$ định lượng độ đóng góp sống còn của toàn bộ kênh thứ $k$ đối với quyết định dự đoán lớp $c$.
+4. **Tổ hợp tuyến tính và áp dụng hàm kích hoạt ReLU:**  
+   $$L^c_{\text{Grad-CAM}} = \text{ReLU}\left( \sum_{k=1}^{960} \alpha_k^c A^k \right)$$
+   *Vì sao bắt buộc dùng hàm ReLU?* Ta chỉ giữ lại các đặc trưng **đóng góp tích cực (làm tăng điểm số)** cho lớp rác $c$. Những đặc trưng thuộc về các lớp khác (làm giảm điểm số) sẽ có giá trị âm và bị hàm ReLU triệt tiêu về $0$.
+
+Bản đồ $L^c_{\text{Grad-CAM}}$ sau đó được **nội suy song tuyến tính (Bilinear Interpolation)** lên kích thước gốc ($224 \times 224$), chuẩn hóa về $[0, 1]$ và phủ màu lên ảnh ban đầu.
+
+#### d. Ba giá trị thực tiễn cốt lõi khi báo cáo giảng viên:
+1. **Phát hiện và chứng minh không học vẹt (Chống Clever Hans):** Chứng minh AI phân loại chai nước vì nó thấy vỏ nhựa và nắp chai, chứ không phải vì cái bàn màu trắng bên dưới.
+2. **Giải thích các ca nhầm lẫn thị giác:** Giải thích vì sao chai nhựa trong suốt bị nhầm thành thủy tinh (do vùng đỏ rực tập trung vào các vệt sáng phản quang chói lóa).
+3. **Minh bạch hóa & Tạo dựng niềm tin (Trustworthiness):** Người dân và các chuyên gia môi trường hoàn toàn yên tâm vì có thể "nhìn thấy" cơ sở logic thị giác của AI trước khi phân loại rác.
 
 ---
 
@@ -225,3 +257,4 @@ Hệ thống được đóng gói với kịch bản khởi động thông minh 
 ---
 
 *Tài liệu được biên soạn và bảo chứng tự động bởi hệ thống AI-Waste Engineering.*
+
