@@ -38,9 +38,9 @@ import torchvision.ops as ops
 logger = logging.getLogger("waste_recognition_detector")
 
 # Default Confidence Thresholds
-DEFAULT_DETECTOR_SCORE_THRESH = float(os.getenv("DETECTOR_SCORE_THRESH", "0.25"))
+DEFAULT_DETECTOR_SCORE_THRESH = float(os.getenv("DETECTOR_SCORE_THRESH", "0.18"))
 DEFAULT_NMS_IOU_THRESH = float(os.getenv("DETECTOR_NMS_IOU_THRESH", "0.45"))
-DEFAULT_CLASSIFIER_CONF_THRESH = float(os.getenv("CLASSIFIER_CONF_THRESH", "0.40"))
+DEFAULT_CLASSIFIER_CONF_THRESH = float(os.getenv("CLASSIFIER_CONF_THRESH", "0.35"))
 CROP_PADDING_RATIO = float(os.getenv("CROP_PADDING_RATIO", "0.06"))
 MIN_CROP_DIMENSION = int(os.getenv("MIN_CROP_DIMENSION", "16"))
 
@@ -294,11 +294,25 @@ def detect_and_classify_multiple_objects(
         for obj in detected_non_waste
     )
 
+    # Adaptive Sensitivity: For complex/crushed/overlapping litter, if fewer than 2 proposals are found,
+    # adaptively probe with lower threshold down to 0.10 for waste candidate categories
+    if len(candidate_boxes_list) < 2 and not has_person_or_animal:
+        adaptive_thresh = max(0.10, detector_score_thresh * 0.55)
+        adaptive_mask = (raw_scores >= adaptive_thresh)
+        for box, score, label_idx in zip(raw_boxes[adaptive_mask], raw_scores[adaptive_mask], raw_labels[adaptive_mask]):
+            cat_name = coco_cats[label_idx.item()]
+            if cat_name in COCO_WASTE_CANDIDATES:
+                is_dup = any(torch.allclose(box, existing_b, atol=2.0) for existing_b in candidate_boxes_list)
+                if not is_dup:
+                    candidate_boxes_list.append(box)
+                    candidate_scores_list.append(score)
+                    candidate_labels_list.append(cat_name)
+
     # If no candidate waste proposals found
     if not candidate_boxes_list:
         # Check image texture/variance to avoid triggering on blank/uniform images
         img_variance = float(np.std(np.array(img_rgb)))
-        if not has_person_or_animal and img_variance > 25.0 and len(boxes) > 0:
+        if not has_person_or_animal and img_variance > 25.0:
             # Fallback: check if the overall scene is bulk/scrapyard waste
             try:
                 full_tensor = classifier_transform(img_rgb).unsqueeze(0).to(device)
