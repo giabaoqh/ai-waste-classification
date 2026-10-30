@@ -80,6 +80,11 @@ def detect_hazardous_or_special_override(
     if any(k in check_str for k in carton_keywords):
         return "composite_carton"
 
+    # 4. Medical / Infectious waste (CRITICAL BIOHAZARD)
+    medical_keywords = ["syringe", "needle", "kim tiêm", "bơm tiêm", "khẩu trang", "mask", "glove", "găng tay y tế", "medicine", "pill", "thuốc", "vỉ thuốc", "băng gạc", "rác y tế", "biohazard"]
+    if any(k in check_str for k in medical_keywords):
+        return "medical"
+
     return None
 
 

@@ -42,7 +42,7 @@ PROCESSED_DATA_DIR = PROJECT_ROOT / "data" / "processed"
 CHECKPOINT_DIR = PROJECT_ROOT / "checkpoints"
 
 # Thứ tự lớp cố định theo đặc tả dự án
-TARGET_CLASSES = ["plastic", "paper", "metal", "glass", "organic", "other"]
+TARGET_CLASSES = ["plastic", "paper", "metal", "glass", "organic", "other", "medical"]
 CLASS_TO_IDX = {cls_name: idx for idx, cls_name in enumerate(TARGET_CLASSES)}
 IDX_TO_CLASS = {idx: cls_name for idx, cls_name in enumerate(TARGET_CLASSES)}
 

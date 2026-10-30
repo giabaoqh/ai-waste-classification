@@ -7,7 +7,15 @@
     "plastic": {
       "id": "plastic",
       "label_vi": "Nhựa (Plastic)",
-      "aliases": ["chai nhựa", "hộp nhựa", "nilon", "nhựa tái chế", "pet", "hdpe", "pp"],
+      "aliases": [
+        "chai nhựa",
+        "hộp nhựa",
+        "nilon",
+        "nhựa tái chế",
+        "pet",
+        "hdpe",
+        "pp"
+      ],
       "bin": "Thùng rác tái chế (Màu vàng/trắng)",
       "bin_color": "#eab308",
       "special_destination": null,
@@ -55,7 +63,14 @@
     "paper": {
       "id": "paper",
       "label_vi": "Giấy / Bìa carton (Paper)",
-      "aliases": ["giấy báo", "bìa carton", "thùng giấy", "sách vở", "tạp chí", "hộp giấy"],
+      "aliases": [
+        "giấy báo",
+        "bìa carton",
+        "thùng giấy",
+        "sách vở",
+        "tạp chí",
+        "hộp giấy"
+      ],
       "bin": "Thùng rác tái chế (Màu vàng/trắng)",
       "bin_color": "#3b82f6",
       "special_destination": null,
@@ -103,7 +118,13 @@
     "metal": {
       "id": "metal",
       "label_vi": "Kim loại (Metal)",
-      "aliases": ["vỏ lon nhôm", "hộp thiếc", "sắt thép", "đồng", "nắp kim loại"],
+      "aliases": [
+        "vỏ lon nhôm",
+        "hộp thiếc",
+        "sắt thép",
+        "đồng",
+        "nắp kim loại"
+      ],
       "bin": "Thùng rác tái chế (Màu vàng/trắng)",
       "bin_color": "#ef4444",
       "special_destination": null,
@@ -151,7 +172,12 @@
     "glass": {
       "id": "glass",
       "label_vi": "Thủy tinh (Glass)",
-      "aliases": ["chai thủy tinh", "lọ thủy tinh", "hũ thủy tinh", "mảnh kính"],
+      "aliases": [
+        "chai thủy tinh",
+        "lọ thủy tinh",
+        "hũ thủy tinh",
+        "mảnh kính"
+      ],
       "bin": "Thùng rác tái chế / Trạm thu gom thủy tinh",
       "bin_color": "#06b6d4",
       "special_destination": null,
@@ -199,7 +225,14 @@
     "organic": {
       "id": "organic",
       "label_vi": "Rác hữu cơ (Organic)",
-      "aliases": ["thức ăn thừa", "vỏ hoa quả", "rau củ", "lá cây", "bã cà phê", "bã trà"],
+      "aliases": [
+        "thức ăn thừa",
+        "vỏ hoa quả",
+        "rau củ",
+        "lá cây",
+        "bã cà phê",
+        "bã trà"
+      ],
       "bin": "Thùng rác hữu cơ (Màu xanh lá)",
       "bin_color": "#22c55e",
       "special_destination": null,
@@ -247,7 +280,13 @@
     "other": {
       "id": "other",
       "label_vi": "Rác khác / Rác sinh hoạt còn lại (Other)",
-      "aliases": ["rác sinh hoạt", "vải vụn", "da giày", "đồ gốm vỡ", "bỉm tã"],
+      "aliases": [
+        "rác sinh hoạt",
+        "vải vụn",
+        "da giày",
+        "đồ gốm vỡ",
+        "bỉm tã"
+      ],
       "bin": "Thùng rác sinh hoạt / Rác còn lại (Màu xám/đen)",
       "bin_color": "#64748b",
       "special_destination": null,
@@ -294,7 +333,14 @@
     "battery": {
       "id": "battery",
       "label_vi": "Pin & Ắc quy (Chất thải nguy hại)",
-      "aliases": ["pin", "battery", "ắc quy", "pin tiểu", "pin điện thoại", "lithium"],
+      "aliases": [
+        "pin",
+        "battery",
+        "ắc quy",
+        "pin tiểu",
+        "pin điện thoại",
+        "lithium"
+      ],
       "bin": "Điểm thu gom pin cũ & Rác nguy hại riêng (KHÔNG bỏ thùng rác thường)",
       "bin_color": "#dc2626",
       "special_destination": "Điểm thu gom pin cũ tại Siêu thị, UBND Phường, Trường học hoặc Hệ thống thu hồi pin chuyên dụng",
@@ -342,7 +388,17 @@
     "e_waste": {
       "id": "e_waste",
       "label_vi": "Rác thải điện tử (E-Waste)",
-      "aliases": ["cell phone", "laptop", "remote", "keyboard", "mouse", "điện thoại", "chuột máy tính", "bàn phím", "đồ điện tử"],
+      "aliases": [
+        "cell phone",
+        "laptop",
+        "remote",
+        "keyboard",
+        "mouse",
+        "điện thoại",
+        "chuột máy tính",
+        "bàn phím",
+        "đồ điện tử"
+      ],
       "bin": "Điểm thu gom rác điện tử chuyên dụng (E-waste collection)",
       "bin_color": "#7c3aed",
       "special_destination": "Chương trình Việt Nam Tái Chế (Vietnam Recycles), trung tâm bảo hành hãng hoặc điểm thu gom rác điện tử",
@@ -390,7 +446,12 @@
     "composite_carton": {
       "id": "composite_carton",
       "label_vi": "Hộp giấy nhiều lớp (Tetra Pak / Vỏ hộp sữa)",
-      "aliases": ["vỏ hộp sữa", "hộp nước ngọt giấy", "tetra pak", "hộp giấy tráng nhôm"],
+      "aliases": [
+        "vỏ hộp sữa",
+        "hộp nước ngọt giấy",
+        "tetra pak",
+        "hộp giấy tráng nhôm"
+      ],
       "bin": "Thùng rác tái chế / Điểm thu gom vỏ hộp sữa riêng",
       "bin_color": "#0284c7",
       "special_destination": "Điểm thu gom vỏ hộp sữa học đường hoặc thùng rác tái chế có phân loại riêng",
@@ -433,7 +494,72 @@
       "mixed_material_notes": "Cấu trúc sandwich 6 lớp gồm giấy, nhôm và polyethylene liên kết chặt chẽ.",
       "source": "Tetra Pak Vietnam; Liên minh Tái chế Bao bì Việt Nam (PRO Vietnam)",
       "last_verified": "2026-10"
+    },
+    "medical": {
+      "id": "medical",
+      "label_vi": "Rác thải y tế & Lây nhiễm",
+      "aliases": [
+        "rác y tế",
+        "khẩu trang",
+        "găng tay y tế",
+        "kim tiêm",
+        "bơm tiêm",
+        "thuốc",
+        "vỉ thuốc",
+        "lọ thuốc",
+        "băng gạc",
+        "vật sắc nhọn y tế",
+        "syringe",
+        "gloves",
+        "masks",
+        "medicines",
+        "medical"
+      ],
+      "bin": "Thùng rác y tế màu vàng (Chất thải lây nhiễm/nguy hại)",
+      "bin_color": "#e11d48",
+      "special_destination": "Trạm y tế, bệnh viện, thùng rác y tế chuyên dụng hoặc hộp kháng thủng màu vàng",
+      "guidance": "Phân loại riêng rác thải y tế vào thùng hoặc túi màu vàng có biểu tượng cảnh báo nguy hại sinh học (Biohazard). Đối với vật sắc nhọn (bơm kim tiêm, lưỡi trích), bắt buộc bỏ vào hộp kháng thủng hoặc chai nhựa cứng đậy kín nắp để tránh đâm thủng túi làm lây nhiễm mầm bệnh cho nhân viên thu gom rác. TUYỆT ĐỐI KHÔNG vứt chung vào thùng rác tái chế hay rác sinh hoạt thông thường.",
+      "hazardous_override": true,
+      "override_reason": "Chất thải y tế có nguy cơ lây nhiễm mầm bệnh sinh học nguy hiểm hoặc gây tổn thương sắc nhọn theo Thông tư 20/2021/TT-BYT. Bắt buộc thu gom riêng vào thùng màu vàng hoặc hộp kháng thủng chuyên dụng.",
+      "preparation_requirements": [
+        "Khẩu trang và găng tay y tế: Cuộn gọn mặt trong ra ngoài, bỏ vào túi bóng buộc kín.",
+        "Bơm kim tiêm / vật sắc nhọn: Cho ngay vào hộp kháng thủng màu vàng hoặc chai nhựa cứng có nắp vặn.",
+        "Thuốc quá hạn / vỉ thuốc: Giữ nguyên trong bao bì vỉ/lọ, mang gửi lại nhà thuốc hoặc điểm thu hồi hóa chất y tế.",
+        "Tuyệt đối không bẻ gãy kim tiêm bằng tay trần để tránh kim đâm gây phơi nhiễm."
+      ],
+      "tips": [
+        "Bỏ rác y tế vào thùng màu vàng có biểu tượng nguy hại sinh học",
+        "Vật sắc nhọn như kim tiêm PHẢI cho vào bình/hộp kháng thủng",
+        "Không bán găng tay/khẩu trang y tế cũ cho ve chai hoặc bỏ vào rác sinh hoạt",
+        "Thuốc hết hạn mang giao nộp tại cơ sở y tế hoặc nhà thuốc tiếp nhận"
+      ],
+      "combustibility": {
+        "is_combustible": false,
+        "status": "Chỉ thiêu đốt trong lò đốt y tế chuyên dụng (>1000°C)",
+        "badge_color": "#e11d48",
+        "analysis": "Chất thải y tế và lây nhiễm chỉ được phép xử lý bằng công nghệ đốt nhiệt độ cao trong lò đốt y tế chuyên dụng đạt chuẩn QCVN 02:2012/BTNMT hoặc khử khuẩn bằng vi sóng/hấp tiệt trùng Autoclave. TUYỆT ĐỐI KHÔNG tự ý đốt hở tại khu dân cư.",
+        "warning": "Tự ý đốt rác y tế tại nhà sẽ phát tán mầm bệnh lây nhiễm, khí độc dioxin và vi nhựa độc hại vào không khí."
+      },
+      "recyclability": {
+        "status": "non_recyclable",
+        "level": "CẤM tái chế sinh hoạt thông thường",
+        "difficulty_score": "Rất cao (Nguy hại sinh học)",
+        "badge_color": "#dc2626",
+        "analysis": "Rác thải y tế và dụng cụ tiếp xúc dịch cơ thể bị nghiêm cấm đưa vào các cơ sở tái chế phế liệu dân dụng để ngăn ngừa nguy cơ bùng phát dịch bệnh truyền nhiễm.",
+        "economic_value": "Không có giá trị tái chế thương mại dân sự."
+      },
+      "processing_steps": [
+        "1. Tại nguồn: Phân loại vào túi vàng/hộp kháng thủng có dán nhãn Biohazard.",
+        "2. Vận chuyển: Xe chuyên dùng có thùng lạnh kín chuyên biệt của công ty môi trường đô thị y tế.",
+        "3. Xử lý: Tiệt trùng bằng công nghệ vi sóng/hấp Autoclave hoặc thiêu đốt ở 1050°C trong lò hai cấp."
+      ],
+      "environmental_impact": {
+        "decomposition_time": "Hàng trăm năm đối với kim tiêm nhựa/thép; nguy cơ ô nhiễm nguồn nước và lây lan vi khuẩn kháng thuốc nếu chôn lấp tùy tiện.",
+        "carbon_saving": "Xử lý an toàn ngăn chặn 100% rủi ro lây nhiễm dịch bệnh và ngộ độc hóa học trong cộng đồng."
+      },
+      "mixed_material_notes": "Gồm nhựa PP/PE y tế, kim loại thép không gỉ, cao su latex, sợi không dệt và dược phẩm.",
+      "source": "Thông tư 20/2021/TT-BYT Quy định về quản lý chất thải y tế; QCVN 02:2012/BTNMT",
+      "last_verified": "2026-10"
     }
   }
 }
-

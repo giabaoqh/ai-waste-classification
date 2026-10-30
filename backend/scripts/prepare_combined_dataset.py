@@ -40,10 +40,11 @@ PROJECT_ROOT = SCRIPT_DIR.parent.parent
 # Đường dẫn dữ liệu
 REALWASTE_DIR = PROJECT_ROOT / "data" / "raw" / "realwaste" / "extracted" / "realwaste-main" / "RealWaste"
 KAGGLE_DIR = PROJECT_ROOT / "data" / "raw" / "kaggle_garbage"
+MEDICAL_DIR = PROJECT_ROOT / "data" / "raw" / "medical_waste"
 OUTPUT_DIR = PROJECT_ROOT / "data" / "processed"
 
 # Thứ tự lớp chuẩn dự án (đồng bộ 100% với train.py, checkpoint và main.py)
-TARGET_CLASSES = ["plastic", "paper", "metal", "glass", "organic", "other"]
+TARGET_CLASSES = ["plastic", "paper", "metal", "glass", "organic", "other", "medical"]
 CLASS_TO_IDX = {cls_name: idx for idx, cls_name in enumerate(TARGET_CLASSES)}
 IDX_TO_CLASS = {str(idx): cls_name for cls_name, idx in CLASS_TO_IDX.items()}
 
@@ -76,6 +77,14 @@ KAGGLE_MAPPING = {
     "clothes": "other",
     "shoes": "other",
     "trash": "other"
+}
+
+# Bảng ánh xạ Medical Waste (TrashBox Medical)
+MEDICAL_MAPPING = {
+    "masks": "medical",
+    "gloves": "medical",
+    "medicines": "medical",
+    "syringe": "medical"
 }
 
 VALID_EXTENSIONS = {".jpg", ".jpeg", ".png", ".webp"}
@@ -181,7 +190,7 @@ def main():
     output_dir.mkdir(parents=True, exist_ok=True)
 
     print("=====================================================================")
-    print("  CHUẨN BỊ VÀ GỘP TẬP DỮ LIỆU: REALWASTE + KAGGLE GARBAGE (12 CLASSES)")
+    print("  CHUẨN BỊ VÀ GỘP TẬP DỮ LIỆU: REALWASTE + KAGGLE + TRASHBOX MEDICAL (7 CLASSES)")
     print("=====================================================================")
 
     # 1. Thu thập RealWaste
@@ -191,7 +200,10 @@ def main():
     kaggle_extracted = extract_kaggle_zip_if_needed(KAGGLE_DIR)
     kaggle_samples = collect_images_from_directory(kaggle_extracted, KAGGLE_MAPPING, "Kaggle12")
 
-    all_samples = realwaste_samples + kaggle_samples
+    # 3. Thu thập Medical Waste (TrashBox)
+    medical_samples = collect_images_from_directory(MEDICAL_DIR, MEDICAL_MAPPING, "TrashBox-Medical") if MEDICAL_DIR.exists() else []
+
+    all_samples = realwaste_samples + kaggle_samples + medical_samples
     total_images = len(all_samples)
 
     if total_images == 0:

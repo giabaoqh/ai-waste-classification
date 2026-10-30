@@ -11,12 +11,13 @@
 2. [Kiến Trúc Hệ Thống & Tech Stack (Sử Dụng Những Gì?)](#2-kiến-trúc-hệ-thống--tech-stack)
 3. [Dữ Liệu Huấn Luyện (Data Ở Đâu & Có Bao Nhiêu?)](#3-dữ-liệu-huấn-luyện-data)
 4. [Các Trụ Cột Công Nghệ & Giải Thuật Cốt Lõi (AI Pipeline)](#4-các-trụ-cột-công-nghệ--giải-thuật-cốt-lõi)
-   - 4.1. Mô hình phân loại 6 nhóm rác (MobileNetV3-Large)
+   - 4.1. Mô hình phân loại 7 nhóm rác (MobileNetV3-Large)
    - 4.2. Phát hiện & khoanh vùng đa vật thể (SSDLite320 + Two-Stage + Scene Fallback)
    - 4.3. Hiệu chuẩn độ tin cậy (Confidence Calibration & Temperature Scaling)
    - 4.4. Cơ chế lọc vật thể không phải rác (Semantic Non-Waste Gatekeeper)
    - 4.5. Giải thích quyết định AI (Explainable AI - Grad-CAM)
    - 4.6. Cơ sở tri thức phân loại rác Việt Nam (Luật BVMT 2020 & TCVN)
+   - 4.7. Bản đồ báo cáo điểm nóng rác thải đô thị (Crowdsourced Smart City Litter Map)
 5. [Kết Quả Thực Nghiệm & Đo Lường Định Lượng](#5-kết-quả-thực-nghiệm--đo-lường-định-lượng)
 6. [Quy Trình Vận Hành & Khởi Động Dự Án (Demo Sống)](#6-quy-trình-vận-hành--khởi-động-dự-án)
 7. [Bộ Câu Hỏi Phản Biện Của Giảng Viên & Cách Trả Lời Điểm 10](#7-bộ-câu-hỏi-phản-biện-của-giảng-viên)
@@ -60,7 +61,7 @@ Object Proposal  Classifier & Grad-CAM   Luật BVMT 2020 & TCVN
 | Tầng hệ thống | Công nghệ / Thư viện | Vai trò cụ thể trong dự án |
 |:---|:---|:---|
 | **AI Framework** | **PyTorch 2.14 + Torchvision** (CUDA 12.6) | Xây dựng, huấn luyện và chạy suy luận (inference) mô hình nơ-ron sâu trên GPU RTX 3050 Laptop. |
-| **Phân loại ảnh** | **MobileNetV3-Large** | Backbone trích xuất đặc trưng và phân loại 6 nhóm rác. Tối ưu cho tốc độ cao và dung lượng nhẹ (~16 MB). |
+| **Phân loại ảnh** | **MobileNetV3-Large** | Backbone trích xuất đặc trưng và phân loại 7 nhóm rác (kèm Rác thải Y tế nguy hại). Tối ưu cho tốc độ cao và dung lượng nhẹ (~16 MB). |
 | **Phát hiện vật thể**| **SSDLite320-MobileNetV3** | Định vị bounding box đa vật thể, crop từng vùng đối tượng phục vụ pipeline Two-Stage. |
 | **Trực quan hóa XAI**| **Grad-CAM** | Sinh bản đồ nhiệt (heatmap) làm sáng tỏ vùng không gian mà AI tập trung nhìn vào. |
 | **Backend API** | **FastAPI + Uvicorn** | Cung cấp RESTful API hiệu năng cao, bất đồng bộ (async), tự động sinh tài liệu Swagger UI (`/docs`). |
@@ -98,21 +99,25 @@ Toàn bộ dữ liệu được chuẩn hóa về **6 danh mục rác tiêu chu�
 
 ## 4. CÁC TRỤ CỘT CÔNG NGHỆ & GIẢI THUẬT CỐT LÕI
 
-### 4.1. Mô hình Phân Loại Rác (MobileNetV3-Large)
+### 4.1. Mô hình Phân Loại Rác 7 Lớp (MobileNetV3-Large)
 * **Vì sao chọn MobileNetV3?** Thay vì dùng ResNet-50 hay VGG quá nặng nề (hàng chục triệu tham số, chậm trên CPU), MobileNetV3 sử dụng kiến trúc **Inverted Residuals** kết hợp khối **Squeeze-and-Excitation (SE)** và hàm kích hoạt **Hard-Swish**. Mô hình chỉ có khoảng **5.4 triệu tham số**, kích thước file vỏn vẹn **16.8 MB**, đạt tốc độ suy luận siêu tốc (~40ms trên GPU, ~120ms trên CPU văn phòng).
-* **Cơ chế Transfer Learning:** Khởi tạo từ trọng số tiền huấn luyện ImageNet-1K (`MobileNet_V3_Large_Weights.DEFAULT`), thay thế lớp Linear cuối cùng bằng `nn.Linear(in_features=960, out_features=6)`.
+* **Cơ chế Transfer Learning:** Khởi tạo từ trọng số tiền huấn luyện ImageNet-1K (`MobileNet_V3_Large_Weights.DEFAULT`), thay thế lớp Linear cuối cùng bằng `nn.Linear(in_features=960, out_features=7)`.
 * **Cân bằng trọng số lớp (Class Weights):** Tự động tính toán theo công thức nghịch đảo tần suất mẫu:
   $$w_c = \frac{N}{C \times N_c}$$
   nhằm chống lệch dự đoán về các lớp chiếm số lượng lớn.
 
 ---
 
-### 4.2. Phát Hiện & Khoanh Vùng Đa Vật Thể (Two-Stage Detection Pipeline)
-Hệ thống cho phép quét một bức ảnh chứa nhiều vật thể rác nằm cạnh nhau:
-1. **Giai đoạn 1 (Proposal):** Mạng `SSDLite320-MobileNetV3` quét toàn bộ ảnh, đề xuất các bounding box của 29 danh mục ứng viên rác thải.
-2. **Giai đoạn 2 (Non-Maximum Suppression):** Áp dụng NMS với ngưỡng IoU = 0.45 để loại bỏ các hộp chồng lấn, chỉ giữ lại các hộp tối ưu nhất.
-3. **Giai đoạn 3 (Safe Cropping & Padding):** Cắt từng vùng ảnh với tỉ lệ đệm (padding) 6%, kẹp toạ độ trong khung viền `[0, W]` và `[0, H]`, loại bỏ nhiễu nhỏ hơn 16px.
-4. **Giai đoạn 4 (Fine-Grained Classification):** Đưa từng crop ảnh vào mạng MobileNetV3-Large để xác định chất liệu và độ tin cậy.
+### 4.2. Phát Hiện & Khoanh Vùng Đa Vật Thể Nâng Cao (Multi-Scale Slicing Two-Stage Pipeline)
+Hệ thống cho phép quét một bức ảnh chứa đống rác phức tạp, dày đặc hoặc nhiều vật thể rác nằm đè lên nhau:
+1. **Multi-Scale Slicing Inference (Mẫu kiến trúc SAHI - Slicing Aided Hyper Inference):**
+   * *Vấn đề thực tế:* Khi mạng nơ-ron thu nhỏ ảnh gốc (1000px+) về 320x320, các vỏ lon bị bẹp, túi nilon nhăn, mẩu rác nhỏ chỉ còn 10-15px, bị mất chi tiết và trôi khỏi trường tiếp nhận (receptive field).
+   * *Giải pháp:* Hệ thống chia ảnh thành 6 cửa sổ trượt phân giải cao (Toàn cảnh + 4 góc phần tư gối đầu 16% + Vùng trung tâm trọng điểm), chạy detector trên từng slice rồi quy đổi tọa độ về không gian gốc.
+2. **Giai đoạn 1 (Proposal Generation & Threshold Thích ứng):** Thu nhận đề xuất từ 33 danh mục ứng viên rác thải COCO với ngưỡng nhạy 0.10 (tăng gấp 3 lần độ nhạy đối với rác bị biến dạng/vùi lấp).
+3. **Giai đoạn 2 (Class-Agnostic Non-Maximum Suppression):** Áp dụng NMS toàn cục với ngưỡng IoU = 0.38 để hợp nhất các box trùng giữa các góc slice nhưng vẫn tách bạch các món rác nằm sát cạnh nhau.
+4. **Giai đoạn 3 (Safe Cropping & Padding):** Cắt từng vùng ảnh trực tiếp từ ảnh gốc chất lượng cao với tỉ lệ đệm viền 6%, kẹp toạ độ trong viền [0, W] và [0, H], loại bỏ nhiễu < 16px.
+5. **Giai đoạn 4 (Fine-Grained 7-Class Classification):** Đưa từng crop vào MobileNetV3-Large để phân loại chính xác 7 nhóm rác (nhựa, giấy, kim loại, thủy tinh, hữu cơ, y tế, khác). Giới hạn tối đa 35 vật thể rõ ràng nhất, sắp xếp theo độ tự tin kết hợp.
+6. **Tiện ích Người dùng:** Hỗ trợ kéo thả ảnh trực tiếp (Drag & Drop) từ bất kỳ thư mục hay trình duyệt nào vào trang web mà không cần mở hộp thoại chọn tệp, đồng thời hỗ trợ dán ảnh chụp màn hình ngay lập tức qua phím tắt Ctrl + V.
 5. **Cơ chế Fallback Bãi Phế Liệu Quy Mô Lớn (Bulk Scrapyard Scene Fallback):**
    * *Vấn đề thực tế:* Khi chụp đống sắt vụn hoặc bãi phế liệu, detector thông thường bị ảo giác gán nhãn `boat` do vỏ kim loại cong.
    * *Giải pháp độc quyền:* Khi phát hiện cảnh hỗn độn không có bóng người/thú cưng, hệ thống tự động gọi Classifier đánh giá toàn cảnh. Nếu xác suất phế liệu kim loại hoặc rác tổng hợp chiếm ưu thế, hệ thống tự động khoanh vùng tổng thể và định danh là **"Bãi phế liệu sắt thép / Rác tổng hợp quy mô lớn"**, tuyệt đối không báo nhầm "không có rác".
@@ -187,31 +192,49 @@ Hệ thống **tách rời hoàn toàn** giữa AI dự đoán và tri thức x�
 
 ---
 
-## 5. KẾT QUẢ THỰC NGHIỆM & ĐO LƯỜNG ĐỊNH LƯỢNG
+### 4.7. Bản Đồ Báo Cáo Điểm Nóng Rác Thải Đô Thị (Crowdsourced Smart City Litter Map)
+Hệ thống mở rộng từ một công cụ nhận diện cá nhân thành **nền tảng quản lý môi trường đô thị thông minh (Smart City Platform)**:
+1. **Thu thập dữ liệu cộng đồng (Crowdsourcing):**
+   * Cho phép người dân chụp ảnh hiện trường các bãi rác tự phát, thùng rác công cộng quá tải hoặc rác thải y tế vứt bừa bãi.
+   * Định vị tọa độ địa lý chính xác qua HTML5 Geolocation API và ghim trực tiếp lên bản đồ OpenStreetMap (Leaflet).
+2. **AI Tự động thẩm định & Phân cấp khẩn cấp:**
+   * Ngay khi ảnh hiện trường được tải lên, pipeline AI chạy phân tích thành phần rác thải.
+   * Nếu phát hiện có rác y tế (`medical`) hay rác nguy hại, hệ thống tự động gắn cờ **Khẩn cấp (`critical`)** với viền phát sáng đỏ nhấp nháy trên bản đồ để ưu tiên điều phối xử lý trước.
+3. **Cơ chế xác thực cộng đồng & Điều phối xử lý:**
+   * Người dân khu vực lân cận có thể bấm **"👍 Xác nhận điểm nóng (+1 upvote)"** để tăng độ tin cậy và mức độ ưu tiên của phản ánh.
+   * Đơn vị thu gom môi trường hoặc đội tình nguyện viên có thể cập nhật trạng thái theo chu trình: **Chờ xử lý (Pending) ⏳ ➔ Đang dọn dẹp (In Progress) 🚚 ➔ Đã dọn sạch (Resolved) ✅**.
+4. **Gắn liền với Gamification (Điểm Sinh Thái):**
+   * Người dân khi báo cáo một điểm nóng rác thải chính xác được cộng ngay **+50 Điểm Sinh Thái (Eco Points)**, khuyến khích tinh thần công dân xanh.
 
-Kết quả kiểm thử độc lập trên toàn bộ **1.988 ảnh Test chưa từng xuất hiện trong quá trình huấn luyện**:
+---
+
+## 5. KẾT QUẢ THỰC NGHIỆM & ĐO LƯỜNG ĐỊNH LƯỢNG (7 LỚP)
+
+Kết quả kiểm thử độc lập trên toàn bộ **2.223 ảnh Test độc lập (chưa từng xuất hiện trong quá trình huấn luyện)** sau 10 Epochs trên GPU NVIDIA GeForce RTX 3050 Laptop:
 
 ### 5.1. Bảng số liệu chi tiết từng lớp
-| Danh mục | Số mẫu Test (Support) | Precision | Recall | F1-Score | Đánh giá |
+| Danh mục | Số mẫu Test (Support) | Precision | Recall | F1-Score | Đánh giá năng lực thực tế |
 |:---|:---:|:---:|:---:|:---:|:---|
-| **Giấy (`paper`)** | 421 | 93.75% | 96.20% | **94.96%** | Nhận diện xuất sắc bề mặt carton và chữ in. |
-| **Kim loại (`metal`)** | 235 | 89.92% | 94.89% | **92.34%** | Nhận diện tốt vỏ lon, nắp hộp kim loại. |
-| **Thủy tinh (`glass`)** | 366 | 96.40% | 95.08% | **95.74%** | Rất chuẩn xác với chai lọ màu trong suốt. |
-| **Hữu cơ (`organic`)** | 276 | 95.73% | 97.46% | **96.59%** | Tỷ lệ nhận diện thức ăn thừa, hoa quả rất cao. |
-| **Khác (`other`)** | 421 | 97.25% | 92.40% | **94.76%** | Gom các loại rác tạp chất, xốp, cao su. |
-| **Nhựa (`plastic`)** | 269 | 90.23% | 89.22% | **89.72%** | Lớp khó nhất do nhựa trong suốt phản quang giống thủy tinh. |
-| **TOÀN HỆ THỐNG** | **1.988** | **93.88%** | **94.21%** | **94.02%** | **Test Accuracy: 94.27%** *(Baseline: 95.98%)* |
+| 💉 **Rác y tế (`medical`)** | **235** | **97.05%** | **97.87%** | **97.46%** | **Cao nhất toàn hệ thống (230/235 mẫu đúng). Bắt trúng kim tiêm, khẩu trang, găng tay.** |
+| 🍎 **Hữu cơ (`organic`)** | 276 | 95.74% | 97.83% | **96.77%** | Nhận diện cực nhạy rau củ, thức ăn thừa, cành lá. |
+| 🍾 **Thủy tinh (`glass`)** | 366 | 96.94% | 95.36% | **96.14%** | Phân biệt xuất sắc chai lọ thủy tinh màu và chai trong. |
+| 📦 **Giấy (`paper`)** | 421 | 95.52% | 96.20% | **95.86%** | Bắt trúng bìa carton và tài liệu in. |
+| 🗑️ **Rác khác (`other`)** | 421 | 96.77% | 92.40% | **94.53%** | Phân loại ổn định pin, đồ vải và rác tổng hợp. |
+| 🧴 **Nhựa (`plastic`)** | 269 | 92.28% | 88.85% | **90.53%** | Cải thiện độ chính xác so với bản cũ (+0.81%). |
+| 🥫 **Kim loại (`metal`)** | 235 | 84.94% | 93.62% | **89.07%** | Recall đạt 93.62%, bắt trúng vỏ lon và mảnh kim loại. |
+| **TOÀN HỆ THỐNG** | **2.223** | **94.18%** | **94.59%** | **94.34%** | **Test Accuracy: 94.56%** *(Val Acc: 94.94%)* |
 
-### 5.2. Ma trận nhầm lẫn thực nghiệm (Confusion Matrix)
+### 5.2. Ma trận nhầm lẫn thực nghiệm 7 lớp (Confusion Matrix)
 ```
                 DỰ ĐOÁN (PREDICTED)
-           plastic   paper   metal   glass  organic   other
-plastic  |   240       5       9       9       3       3
-paper    |     6     405       5       0       3       2
-metal    |     7       3     223       2       0       0
-glass    |     6       2       5     348       1       4
-organic  |     1       4       0       0     269       2
-other    |     6      13       6       2       5     389
+           plastic   paper   metal   glass  organic   other  medical
+plastic  |   239       2      17       6       1       3       1
+paper    |     2     405       5       0       2       5       2
+metal    |     7       4     220       1       1       1       1
+glass    |     9       1       5     349       0       2       0
+organic  |     0       2       1       1     270       2       0
+other    |     1       8      11       2       7     389       3
+medical  |     1       2       0       1       1       0     230  ★ (Đúng 230/235)
 ```
 
 ---
@@ -256,5 +279,18 @@ Hệ thống được đóng gói với kịch bản khởi động thông minh 
 
 ---
 
+### ❓ Câu 7: Nhóm xử lý bài toán nhận diện Rác thải y tế lây nhiễm (`medical`) như thế nào và căn cứ pháp lý là gì?
+* **Cách trả lời chuẩn:**
+  > *"Thưa thầy/cô, rác thải y tế (khẩu trang, găng tay phẫu thuật, bơm kim tiêm nhọn, vỉ thuốc quá hạn) là danh mục nguy hại sinh học đặc biệt, nếu phân loại nhầm sang rác tái chế nhựa hay kim loại sẽ đe dọa trực tiếp đến tính mạng công nhân vệ sinh và nguy cơ bùng phát dịch bệnh. 
+  > Nhóm đã tích hợp **1.563 ảnh rác y tế thực tế từ tập dữ liệu TrashBox** và mở rộng mô hình lên **7 nhóm phân loại chuẩn**, đạt độ chính xác kiểm thử trên nhóm y tế lên tới **F1-Score: 97.46% (chính xác 230/235 mẫu test)**. 
+  > Về mặt quy chuẩn, hệ thống căn cứ trực tiếp theo **Thông tư 20/2021/TT-BYT** và **QCVN 02:2012/BTNMT**: hướng dẫn bắt buộc bỏ vào **thùng rác màu vàng (Biohazard)**, vật sắc nhọn kim tiêm phải bỏ vào **hộp kháng thủng**, đồng thời kích hoạt **Cơ chế Ghi đè An toàn (Hazardous Override)** và cộng **+25 Điểm Xanh** để khuyến khích thói quen bảo vệ an toàn sinh học cộng đồng."*
+
+---
+
+
 *Tài liệu được biên soạn và bảo chứng tự động bởi hệ thống AI-Waste Engineering.*
 
+
+### 💡 Câu 8: Dự án này ngoài việc cho người dân quét rác thì có thể tích hợp với các hệ thống quản lý đô thị thông minh (Smart City) như thế nào?
+* **Cách trả lời chuẩn:**
+  > *"Thưa thầy/cô, dự án đã phát triển sẵn module **Bản đồ Điểm nóng Rác thải Đô thị (Smart City Litter Map)** theo mô hình Crowdsourcing kết hợp Trí tuệ Nhân tạo. Người dân khi bắt gặp bãi rác tự phát hay thùng rác quá tải có thể chụp ảnh và gửi tọa độ GPS lên hệ thống. AI sẽ tự động phân tích chất liệu rác trong ảnh, phát hiện nếu có rác y tế hoặc chất độc hại để tự động nâng cấp mức độ khẩn cấp. Dữ liệu này được hiển thị trực tiếp theo thời gian thực trên bản đồ số, cho phép các cơ quan quản lý đô thị hoặc công ty vệ sinh môi trường điều phối xe rác tối ưu lộ trình và người dân theo dõi được tiến độ dọn dẹp sạch sẽ qua các trạng thái minh bạch."*

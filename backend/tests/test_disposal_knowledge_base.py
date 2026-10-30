@@ -43,14 +43,15 @@ class TestDisposalKnowledgeBase(unittest.TestCase):
         self.assertIn("categories", kb)
 
         cats = get_all_categories()
-        # 6 core classes must exist
-        for core_cls in ["plastic", "paper", "metal", "glass", "organic", "other"]:
+        # Core classes must exist
+        for core_cls in ["plastic", "paper", "metal", "glass", "organic", "other", "medical"]:
             self.assertIn(core_cls, cats)
 
         # Specialized categories must exist
         self.assertIn("battery", cats)
         self.assertIn("e_waste", cats)
         self.assertIn("composite_carton", cats)
+        self.assertIn("medical", cats)
 
     def test_combustibility_vs_recyclability_separation(self):
         """Verifies Combustibility and Recyclability are evaluated as strictly separate concepts."""
@@ -132,7 +133,7 @@ class TestEndToEndKnowledgeBaseIntegration(unittest.TestCase):
     def setUpClass(cls):
         device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
         app.state.device = str(device)
-        app.state.classes = ["plastic", "paper", "metal", "glass", "organic", "other"]
+        app.state.classes = ["plastic", "paper", "metal", "glass", "organic", "other", "medical"]
         app.state.transform = transforms.Compose([
             transforms.Resize(256),
             transforms.CenterCrop(224),

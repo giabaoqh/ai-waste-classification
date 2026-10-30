@@ -125,6 +125,43 @@ def init_db(db_path: Optional[Path] = None) -> None:
         if "rejection_reason" not in existing_cols:
             conn.execute("ALTER TABLE prediction_history ADD COLUMN rejection_reason TEXT DEFAULT NULL;")
 
+        # Smart City Litter Reports Table
+        create_litter_reports_table_sql = """
+        CREATE TABLE IF NOT EXISTS litter_reports (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            created_at TEXT NOT NULL,
+            latitude REAL NOT NULL,
+            longitude REAL NOT NULL,
+            address TEXT,
+            description TEXT,
+            image_base64 TEXT,
+            detected_waste_classes TEXT,
+            severity TEXT NOT NULL DEFAULT 'medium',
+            status TEXT NOT NULL DEFAULT 'pending',
+            resolved_at TEXT,
+            resolved_note TEXT,
+            upvotes INTEGER NOT NULL DEFAULT 1,
+            reported_by TEXT DEFAULT 'Người dân'
+        );
+        """
+        conn.execute(create_litter_reports_table_sql)
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_litter_status ON litter_reports (status);")
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_litter_created_at ON litter_reports (created_at DESC);")
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_litter_severity ON litter_reports (severity);")
+
+        # Migration: Bổ sung các cột thông tin nguồn tin tức & tiêu đề cho litter_reports nếu chưa tồn tại
+        existing_litter_cols = {row["name"] for row in conn.execute("PRAGMA table_info(litter_reports);").fetchall()}
+        if "source_type" not in existing_litter_cols:
+            conn.execute("ALTER TABLE litter_reports ADD COLUMN source_type TEXT DEFAULT 'citizen';")
+        if "source_name" not in existing_litter_cols:
+            conn.execute("ALTER TABLE litter_reports ADD COLUMN source_name TEXT DEFAULT 'Người dân';")
+        if "source_url" not in existing_litter_cols:
+            conn.execute("ALTER TABLE litter_reports ADD COLUMN source_url TEXT DEFAULT NULL;")
+        if "title" not in existing_litter_cols:
+            conn.execute("ALTER TABLE litter_reports ADD COLUMN title TEXT DEFAULT NULL;")
+
+        _seed_initial_litter_reports_if_empty(conn)
+
     logger.info("Database schema, indexes, and migrations initialized successfully.")
 
 
@@ -722,3 +759,340 @@ def get_all_history_for_export(
         rows = cursor.fetchall()
         return [_row_to_dict(r) for r in rows]
 
+
+
+
+# ==============================================================================
+# SMART CITY CROWDSOURCED LITTER MAP MODULE
+# ==============================================================================
+
+INITIAL_LITTER_REPORTS_SEED = [
+    {
+        "latitude": 21.0368,
+        "longitude": 105.7832,
+        "address": "Ngõ 165 Cầu Giấy, P. Dịch Vọng, Q. Cầu Giấy, Hà Nội",
+        "description": "Tập kết bao tải rác thải nhựa và thùng xốp lấn chiếm lòng đường ngõ dân cư.",
+        "detected_waste_classes": ["plastic", "other"],
+        "severity": "medium",
+        "status": "pending",
+        "upvotes": 14,
+        "reported_by": "Cư dân Cầu Giấy",
+        "created_at": "2026-10-30T08:30:00"
+    },
+    {
+        "latitude": 21.0285,
+        "longitude": 105.8542,
+        "address": "Quảng trường Đông Kinh Nghĩa Thục, P. Tràng Tiền, Q. Hoàn Kiếm, Hà Nội",
+        "description": "Thùng rác công cộng quá tải sau lễ hội đi bộ, nhiều ly nhựa dùng một lần và lon kim loại.",
+        "detected_waste_classes": ["plastic", "metal", "paper"],
+        "severity": "medium",
+        "status": "in_progress",
+        "upvotes": 32,
+        "reported_by": "Đội Tình nguyện Xanh",
+        "created_at": "2026-10-29T21:15:00"
+    },
+    {
+        "latitude": 21.0150,
+        "longitude": 105.8280,
+        "address": "Gần cổng trạm y tế, P. Trung Liệt, Q. Đống Đa, Hà Nội",
+        "description": "CẢNH BÁO: Phát hiện túi rác y tế (khẩu trang và găng tay y tế) vứt cạnh gốc cây.",
+        "detected_waste_classes": ["medical", "plastic"],
+        "severity": "critical",
+        "status": "pending",
+        "upvotes": 58,
+        "reported_by": "Người dân phản ánh",
+        "created_at": "2026-10-30T14:40:00"
+    },
+    {
+        "latitude": 10.7769,
+        "longitude": 106.7009,
+        "address": "Đường Nguyễn Huệ, P. Bến Nghé, Quận 1, TP. Hồ Chí Minh",
+        "description": "Đống vỏ chai nước khoáng và ly nhựa rải rác sau sự kiện âm nhạc.",
+        "detected_waste_classes": ["plastic"],
+        "severity": "low",
+        "status": "resolved",
+        "resolved_at": "2026-10-28T06:00:00",
+        "resolved_note": "Công ty Vệ sinh Môi trường Đô thị đã thu gom và rửa sạch mặt bằng.",
+        "upvotes": 41,
+        "reported_by": "Người dân Quận 1",
+        "created_at": "2026-10-27T23:10:00"
+    },
+    {
+        "latitude": 10.8015,
+        "longitude": 106.7112,
+        "address": "Chân cầu Thị Nghè, P. 19, Q. Bình Thạnh, TP. Hồ Chí Minh",
+        "description": "Bãi rác tự phát ven bờ kênh, phát sinh mùi hôi do thức ăn thừa và túi nilông.",
+        "detected_waste_classes": ["organic", "plastic"],
+        "severity": "high",
+        "status": "pending",
+        "upvotes": 26,
+        "reported_by": "Cư dân Bình Thạnh",
+        "created_at": "2026-10-30T10:05:00"
+    },
+    {
+        "latitude": 16.0678,
+        "longitude": 108.2208,
+        "address": "Đường Bạch Đằng ven sông Hàn, P. Hải Châu 1, Q. Hải Châu, Đà Nẵng",
+        "description": "Thùng rác phân loại 3 ngăn bị tràn vỏ chai thủy tinh và vỏ lon nhôm.",
+        "detected_waste_classes": ["glass", "metal"],
+        "severity": "medium",
+        "status": "resolved",
+        "resolved_at": "2026-10-29T15:30:00",
+        "resolved_note": "Đã điều phối xe thu gom phân loại chuyển về trung tâm tái chế Hải Châu.",
+        "upvotes": 19,
+        "reported_by": "Du khách Đà Nẵng",
+        "created_at": "2026-10-29T11:20:00"
+    }
+]
+
+
+def _seed_initial_litter_reports_if_empty(conn: sqlite3.Connection) -> None:
+    """Tạo trước dữ liệu mẫu thực tế tại Hà Nội, TP.HCM, Đà Nẵng nếu bảng đang trống."""
+    cursor = conn.cursor()
+    cursor.execute("SELECT COUNT(*) as count FROM litter_reports;")
+    count = cursor.fetchone()["count"]
+    if count == 0:
+        logger.info("Seeding initial smart city litter hotspot reports...")
+        sql = """
+        INSERT INTO litter_reports (
+            created_at, latitude, longitude, address, description,
+            image_base64, detected_waste_classes, severity, status,
+            resolved_at, resolved_note, upvotes, reported_by
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+        """
+        for item in INITIAL_LITTER_REPORTS_SEED:
+            classes_json = json.dumps(item.get("detected_waste_classes", []), ensure_ascii=False)
+            cursor.execute(sql, (
+                item["created_at"],
+                item["latitude"],
+                item["longitude"],
+                item["address"],
+                item["description"],
+                None,
+                classes_json,
+                item["severity"],
+                item["status"],
+                item.get("resolved_at"),
+                item.get("resolved_note"),
+                item.get("upvotes", 1),
+                item.get("reported_by", "Người dân")
+            ))
+        logger.info(f"Seeded {len(INITIAL_LITTER_REPORTS_SEED)} initial smart city litter hotspot reports.")
+
+
+def calculate_haversine_km(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
+    """Tính khoảng cách thực địa (km) giữa hai điểm tọa độ GPS theo công thức Haversine."""
+    import math
+    R = 6371.0  # Bán kính Trái Đất theo km
+    dlat = math.radians(lat2 - lat1)
+    dlon = math.radians(lon2 - lon1)
+    a = math.sin(dlat / 2)**2 + math.cos(math.radians(lat1)) * math.cos(math.radians(lat2)) * math.sin(dlon / 2)**2
+    c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
+    return round(R * c, 2)
+
+
+def create_litter_report(report_data: Dict[str, Any], db_path: Optional[Path] = None) -> int:
+    """Tạo mới một bản ghi báo cáo điểm nóng rác thải vào cơ sở dữ liệu."""
+    target_path = db_path or DB_PATH
+    created_at = report_data.get("created_at") or datetime.now(timezone.utc).isoformat()
+    classes_json = json.dumps(report_data.get("detected_waste_classes", []), ensure_ascii=False)
+
+    sql = """
+    INSERT INTO litter_reports (
+        created_at, latitude, longitude, address, description,
+        image_base64, detected_waste_classes, severity, status,
+        resolved_at, resolved_note, upvotes, reported_by,
+        source_type, source_name, source_url, title
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+    """
+    params = (
+        created_at,
+        float(report_data["latitude"]),
+        float(report_data["longitude"]),
+        report_data.get("address", ""),
+        report_data.get("description", ""),
+        report_data.get("image_base64"),
+        classes_json,
+        report_data.get("severity", "medium"),
+        report_data.get("status", "pending"),
+        report_data.get("resolved_at"),
+        report_data.get("resolved_note"),
+        int(report_data.get("upvotes", 1)),
+        report_data.get("reported_by", "Người dân"),
+        report_data.get("source_type", "citizen"),
+        report_data.get("source_name", report_data.get("reported_by", "Người dân")),
+        report_data.get("source_url"),
+        report_data.get("title")
+    )
+    with get_db_connection(target_path) as conn:
+        cursor = conn.cursor()
+        cursor.execute(sql, params)
+        return cursor.lastrowid
+
+
+def get_litter_reports(
+    status: Optional[str] = None,
+    severity: Optional[str] = None,
+    source_type: Optional[str] = None,
+    user_lat: Optional[float] = None,
+    user_lng: Optional[float] = None,
+    radius_km: Optional[float] = None,
+    sort_by: Optional[str] = None,
+    limit: int = 150,
+    db_path: Optional[Path] = None
+) -> List[Dict[str, Any]]:
+    """Truy vấn danh sách điểm nóng rác thải theo bộ lọc trạng thái, nguồn tin, bán kính GPS và mức độ nghiêm trọng."""
+    target_path = db_path or DB_PATH
+    where_clauses, params = [], []
+
+    if status and status != "all":
+        where_clauses.append("status = ?")
+        params.append(status)
+
+    if severity and severity != "all":
+        where_clauses.append("severity = ?")
+        params.append(severity)
+
+    if source_type and source_type != "all":
+        where_clauses.append("source_type = ?")
+        params.append(source_type)
+
+    where_sql = f"WHERE {' AND '.join(where_clauses)}" if where_clauses else ""
+    sql = f"""
+    SELECT * FROM litter_reports
+    {where_sql}
+    ORDER BY 
+        CASE severity 
+            WHEN 'critical' THEN 1 
+            WHEN 'high' THEN 2 
+            WHEN 'medium' THEN 3 
+            ELSE 4 
+        END,
+        created_at DESC
+    LIMIT ?;
+    """
+    params.append(limit)
+
+    with get_db_connection(target_path) as conn:
+        cursor = conn.cursor()
+        cursor.execute(sql, params)
+        rows = cursor.fetchall()
+
+        results = []
+        for r in rows:
+            d = dict(r)
+            try:
+                d["detected_waste_classes"] = json.loads(d.get("detected_waste_classes") or "[]")
+            except Exception:
+                d["detected_waste_classes"] = []
+            
+            # Đảm bảo các giá trị mặc định cho trường nguồn
+            d.setdefault("source_type", "citizen")
+            d.setdefault("source_name", d.get("reported_by") or "Người dân")
+            d.setdefault("source_url", None)
+            d.setdefault("title", None)
+
+            # Tính toán khoảng cách nếu có GPS người dùng
+            if user_lat is not None and user_lng is not None:
+                d["distance_km"] = calculate_haversine_km(
+                    user_lat, user_lng, float(d["latitude"]), float(d["longitude"])
+                )
+            else:
+                d["distance_km"] = None
+
+            # Lọc theo bán kính nếu yêu cầu
+            if radius_km is not None and d["distance_km"] is not None:
+                if d["distance_km"] > radius_km:
+                    continue
+
+            results.append(d)
+
+        # Sắp xếp theo cự ly gần nhất nếu sort_by == 'distance'
+        if sort_by == "distance" and user_lat is not None and user_lng is not None:
+            results.sort(key=lambda item: item["distance_km"] if item["distance_km"] is not None else 999999.0)
+
+        return results
+
+
+def get_litter_report_by_id(report_id: int, db_path: Optional[Path] = None) -> Optional[Dict[str, Any]]:
+    """Lấy thông tin chi tiết một điểm nóng rác thải theo ID."""
+    target_path = db_path or DB_PATH
+    with get_db_connection(target_path) as conn:
+        cursor = conn.cursor()
+        cursor.execute("SELECT * FROM litter_reports WHERE id = ?;", (report_id,))
+        row = cursor.fetchone()
+        if not row:
+            return None
+        d = dict(row)
+        try:
+            d["detected_waste_classes"] = json.loads(d.get("detected_waste_classes") or "[]")
+        except Exception:
+            d["detected_waste_classes"] = []
+        return d
+
+
+def update_litter_report_status(
+    report_id: int,
+    status: str,
+    resolved_note: Optional[str] = None,
+    db_path: Optional[Path] = None
+) -> bool:
+    """Cập nhật trạng thái dọn dẹp ('pending', 'in_progress', 'resolved')."""
+    target_path = db_path or DB_PATH
+    resolved_at = datetime.now(timezone.utc).isoformat() if status == "resolved" else None
+
+    sql = """
+    UPDATE litter_reports
+    SET status = ?,
+        resolved_at = CASE WHEN ? = 'resolved' THEN COALESCE(?, resolved_at) ELSE NULL END,
+        resolved_note = COALESCE(?, resolved_note)
+    WHERE id = ?;
+    """
+    with get_db_connection(target_path) as conn:
+        cursor = conn.cursor()
+        cursor.execute(sql, (status, status, resolved_at, resolved_note, report_id))
+        return cursor.rowcount > 0
+
+
+def upvote_litter_report(report_id: int, db_path: Optional[Path] = None) -> int:
+    """Tăng số lượt xác nhận (upvote) của người dân đối với điểm nóng rác thải."""
+    target_path = db_path or DB_PATH
+    with get_db_connection(target_path) as conn:
+        cursor = conn.cursor()
+        cursor.execute("UPDATE litter_reports SET upvotes = upvotes + 1 WHERE id = ?;", (report_id,))
+        cursor.execute("SELECT upvotes FROM litter_reports WHERE id = ?;", (report_id,))
+        row = cursor.fetchone()
+        return row["upvotes"] if row else 1
+
+
+def get_litter_reports_stats(db_path: Optional[Path] = None) -> Dict[str, Any]:
+    """Tổng hợp số liệu thống kê bản đồ rác đô thị thông minh."""
+    target_path = db_path or DB_PATH
+    with get_db_connection(target_path) as conn:
+        cursor = conn.cursor()
+
+        cursor.execute("SELECT COUNT(*) as total FROM litter_reports;")
+        total = cursor.fetchone()["total"]
+
+        cursor.execute("SELECT COUNT(*) as pending FROM litter_reports WHERE status = 'pending';")
+        pending = cursor.fetchone()["pending"]
+
+        cursor.execute("SELECT COUNT(*) as in_prog FROM litter_reports WHERE status = 'in_progress';")
+        in_progress = cursor.fetchone()["in_prog"]
+
+        cursor.execute("SELECT COUNT(*) as resolved FROM litter_reports WHERE status = 'resolved';")
+        resolved = cursor.fetchone()["resolved"]
+
+        cursor.execute("SELECT COUNT(*) as critical FROM litter_reports WHERE severity = 'critical';")
+        critical = cursor.fetchone()["critical"]
+
+        resolution_rate = round((resolved / total * 100), 1) if total > 0 else 0.0
+
+        return {
+            "total_reports": total,
+            "pending_reports": pending,
+            "in_progress_reports": in_progress,
+            "resolved_reports": resolved,
+            "critical_reports": critical,
+            "resolution_rate": resolution_rate
+        }

@@ -5,7 +5,8 @@
     "metal",
     "glass",
     "organic",
-    "other"
+    "other",
+    "medical"
   ],
   "class_to_idx": {
     "plastic": 0,
@@ -13,7 +14,8 @@
     "metal": 2,
     "glass": 3,
     "organic": 4,
-    "other": 5
+    "other": 5,
+    "medical": 6
   },
   "idx_to_class": {
     "0": "plastic",
@@ -21,6 +23,7 @@
     "2": "metal",
     "3": "glass",
     "4": "organic",
-    "5": "other"
+    "5": "other",
+    "6": "medical"
   }
 }

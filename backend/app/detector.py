@@ -38,11 +38,12 @@ import torchvision.ops as ops
 logger = logging.getLogger("waste_recognition_detector")
 
 # Default Confidence Thresholds
-DEFAULT_DETECTOR_SCORE_THRESH = float(os.getenv("DETECTOR_SCORE_THRESH", "0.18"))
-DEFAULT_NMS_IOU_THRESH = float(os.getenv("DETECTOR_NMS_IOU_THRESH", "0.45"))
+DEFAULT_DETECTOR_SCORE_THRESH = float(os.getenv("DETECTOR_SCORE_THRESH", "0.10"))
+DEFAULT_NMS_IOU_THRESH = float(os.getenv("DETECTOR_NMS_IOU_THRESH", "0.38"))
 DEFAULT_CLASSIFIER_CONF_THRESH = float(os.getenv("CLASSIFIER_CONF_THRESH", "0.35"))
 CROP_PADDING_RATIO = float(os.getenv("CROP_PADDING_RATIO", "0.06"))
 MIN_CROP_DIMENSION = int(os.getenv("MIN_CROP_DIMENSION", "16"))
+MAX_DETECTED_OBJECTS = int(os.getenv("MAX_DETECTED_OBJECTS", "35"))
 
 # Candidate COCO categories that represent potential recyclable or disposable waste
 COCO_WASTE_CANDIDATES = {
@@ -78,7 +79,12 @@ COCO_WASTE_CANDIDATES = {
     "backpack": "Ba lô cũ (Vải)",
     "handbag": "Túi xách cũ",
     "suitcase": "Vali cũ",
-    "boat": "Khung / Vỏ kim loại phế liệu"
+    "boat": "Khung / Vỏ kim loại phế liệu",
+    # Packaging / Wrappings / Containers frequently appearing in dense litter
+    "umbrella": "Ô / Dù cũ",
+    "sports ball": "Bóng / Phế phẩm cao su",
+    "frisbee": "Đĩa nhựa / Vỏ nhựa",
+    "potted plant": "Chậu cây / Vỏ chậu",
 }
 
 # Explicit Non-Waste COCO categories (suppressed from waste classification)
@@ -238,8 +244,9 @@ def detect_and_classify_multiple_objects(
     classifier_conf_thresh: float = DEFAULT_CLASSIFIER_CONF_THRESH
 ) -> Dict[str, Any]:
     """
-    Main pipeline for multi-object detection and two-stage classification:
-    1. Detects objects using SSDLite320-MobileNetV3.
+    Main pipeline for multi-object detection and two-stage classification with
+    Multi-Scale Slicing Inference (SAHI pattern):
+    1. Multi-scale sliced candidate proposal extraction across full image + overlapping quadrants.
     2. Identifies non-waste objects (people, animals, furniture).
     3. Performs class-agnostic NMS to eliminate overlapping proposals.
     4. Crops candidate waste boxes with padding & clamping.
@@ -252,61 +259,76 @@ def detect_and_classify_multiple_objects(
     # Load detector
     detector, coco_cats = get_detector_model(device)
 
-    # Prepare input tensor for detector
-    img_tensor = TF.to_tensor(img_rgb).to(device)
-
-    with torch.inference_mode():
-        detections = detector([img_tensor])[0]
-
-    raw_boxes = detections["boxes"]
-    raw_scores = detections["scores"]
-    raw_labels = detections["labels"]
-
-    # Filter by detector score threshold
-    score_mask = raw_scores >= detector_score_thresh
-    boxes = raw_boxes[score_mask]
-    scores = raw_scores[score_mask]
-    labels = raw_labels[score_mask]
+    # Multi-Scale Slicing Setup (Full image + 5 overlapping sub-quadrants when resolution permits)
+    # Allows SSDLite320 to resolve small, crushed, or clustered items in dense piles
+    patches = [(0, 0, width, height)]
+    if width >= 360 and height >= 270:
+        patches.append((0, 0, int(width * 0.58), int(height * 0.58)))
+        patches.append((int(width * 0.42), 0, width, int(height * 0.58)))
+        patches.append((0, int(height * 0.42), int(width * 0.58), height))
+        patches.append((int(width * 0.42), int(height * 0.42), width, height))
+        patches.append((int(width * 0.22), int(height * 0.22), int(width * 0.78), int(height * 0.78)))
 
     detected_non_waste: List[Dict[str, Any]] = []
     candidate_boxes_list: List[torch.Tensor] = []
     candidate_scores_list: List[torch.Tensor] = []
     candidate_labels_list: List[str] = []
 
-    for box, score, label_idx in zip(boxes, scores, labels):
-        cat_name = coco_cats[label_idx.item()]
-        score_val = float(score.item())
+    effective_score_thresh = max(0.08, float(detector_score_thresh))
 
-        if cat_name in COCO_NON_WASTE_CLASSES:
-            detected_non_waste.append({
-                "class_name": cat_name,
-                "detector_confidence": round(score_val, 4),
-                "bbox": [round(float(c), 1) for c in box.tolist()]
-            })
-        elif cat_name in COCO_WASTE_CANDIDATES:
-            candidate_boxes_list.append(box)
-            candidate_scores_list.append(score)
-            candidate_labels_list.append(cat_name)
+    for sx1, sy1, sx2, sy2 in patches:
+        patch_img = img_rgb.crop((sx1, sy1, sx2, sy2))
+        patch_tensor = TF.to_tensor(patch_img).to(device)
+
+        with torch.inference_mode():
+            detections = detector([patch_tensor])[0]
+
+        raw_boxes = detections["boxes"]
+        raw_scores = detections["scores"]
+        raw_labels = detections["labels"]
+
+        score_mask = raw_scores >= effective_score_thresh
+        p_boxes = raw_boxes[score_mask]
+        p_scores = raw_scores[score_mask]
+        p_labels = raw_labels[score_mask]
+
+        for box, score, label_idx in zip(p_boxes, p_scores, p_labels):
+            cat_name = coco_cats[label_idx.item()]
+            score_val = float(score.item())
+
+            # Translate patch coordinates back to global image coordinates
+            gx1 = max(0.0, min(float(width), box[0].item() + sx1))
+            gy1 = max(0.0, min(float(height), box[1].item() + sy1))
+            gx2 = max(0.0, min(float(width), box[2].item() + sx1))
+            gy2 = max(0.0, min(float(height), box[3].item() + sy1))
+
+            if (gx2 - gx1) < MIN_CROP_DIMENSION or (gy2 - gy1) < MIN_CROP_DIMENSION:
+                continue
+
+            global_box = torch.tensor([gx1, gy1, gx2, gy2], device=device)
+
+            if cat_name in COCO_NON_WASTE_CLASSES and score_val >= 0.35:
+                # Add non-waste if not duplicate
+                is_dup_nw = any(
+                    abs(nw["bbox"][0] - gx1) < 15 and abs(nw["bbox"][1] - gy1) < 15
+                    for nw in detected_non_waste
+                )
+                if not is_dup_nw:
+                    detected_non_waste.append({
+                        "class_name": cat_name,
+                        "detector_confidence": round(score_val, 4),
+                        "bbox": [round(gx1, 1), round(gy1, 1), round(gx2, 1), round(gy2, 1)]
+                    })
+            elif cat_name in COCO_WASTE_CANDIDATES:
+                candidate_boxes_list.append(global_box)
+                candidate_scores_list.append(score)
+                candidate_labels_list.append(cat_name)
 
     # Check if real non-waste entities like person or pets are present
     has_person_or_animal = any(
         obj["class_name"] in {"person", "cat", "dog", "bird", "horse", "sheep", "cow", "elephant", "bear", "zebra", "giraffe"}
         for obj in detected_non_waste
     )
-
-    # Adaptive Sensitivity: For complex/crushed/overlapping litter, if fewer than 2 proposals are found,
-    # adaptively probe with lower threshold down to 0.10 for waste candidate categories
-    if len(candidate_boxes_list) < 2 and not has_person_or_animal:
-        adaptive_thresh = max(0.10, detector_score_thresh * 0.55)
-        adaptive_mask = (raw_scores >= adaptive_thresh)
-        for box, score, label_idx in zip(raw_boxes[adaptive_mask], raw_scores[adaptive_mask], raw_labels[adaptive_mask]):
-            cat_name = coco_cats[label_idx.item()]
-            if cat_name in COCO_WASTE_CANDIDATES:
-                is_dup = any(torch.allclose(box, existing_b, atol=2.0) for existing_b in candidate_boxes_list)
-                if not is_dup:
-                    candidate_boxes_list.append(box)
-                    candidate_scores_list.append(score)
-                    candidate_labels_list.append(cat_name)
 
     # If no candidate waste proposals found
     if not candidate_boxes_list:
@@ -388,13 +410,11 @@ def detect_and_classify_multiple_objects(
     t_boxes = torch.stack(candidate_boxes_list)
     t_scores = torch.stack(candidate_scores_list)
 
-    # Non-Maximum Suppression (NMS) to eliminate duplicate bounding boxes
+    # Non-Maximum Suppression (NMS) to eliminate duplicate bounding boxes across slices
     keep_indices = ops.nms(t_boxes, t_scores, nms_iou_thresh)
 
-    final_objects: List[Dict[str, Any]] = []
-    category_counts: Dict[str, int] = {c: 0 for c in target_classes}
+    confirmed_candidates: List[Dict[str, Any]] = []
 
-    idx = 1
     for k_idx in keep_indices:
         i = k_idx.item()
         box = t_boxes[i].cpu().numpy().tolist()
@@ -402,7 +422,7 @@ def detect_and_classify_multiple_objects(
         coco_label = candidate_labels_list[i]
         coco_label_vi = COCO_WASTE_CANDIDATES.get(coco_label, coco_label)
 
-        # 1. Extract crop
+        # 1. Extract crop from original un-resized image with margin padding
         crop = extract_safe_crop(img_rgb, box, padding_ratio=CROP_PADDING_RATIO)
         if crop is None:
             continue
@@ -431,7 +451,6 @@ def detect_and_classify_multiple_objects(
 
         # Build detected item record
         obj_item = {
-            "index": idx,
             "bbox": [round(float(c), 1) for c in box],
             "bbox_normalized": [
                 round(box[0] / width, 4),
@@ -457,10 +476,20 @@ def detect_and_classify_multiple_objects(
                 "last_verified": recom.get("last_verified")
             }
         }
+        confirmed_candidates.append(obj_item)
 
-        final_objects.append(obj_item)
-        category_counts[waste_class] = category_counts.get(waste_class, 0) + 1
-        idx += 1
+    # Sort confirmed items by combination of classifier confidence and detector confidence
+    confirmed_candidates.sort(key=lambda x: (x["classifier_confidence"] * 0.7 + x["detector_confidence"] * 0.3), reverse=True)
+
+    # Cap to MAX_DETECTED_OBJECTS to keep rendering responsive and clutter-free
+    final_objects = confirmed_candidates[:MAX_DETECTED_OBJECTS]
+
+    # Assign sequential 1-based indexes and count categories
+    category_counts: Dict[str, int] = {c: 0 for c in target_classes}
+    for idx, obj in enumerate(final_objects, 1):
+        obj["index"] = idx
+        w_cls = obj["waste_class"]
+        category_counts[w_cls] = category_counts.get(w_cls, 0) + 1
 
     # Render annotations
     annotated_uri = None

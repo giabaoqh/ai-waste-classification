@@ -10,7 +10,7 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Dict, Any, List, Optional, Tuple
 
-from fastapi import FastAPI, File, UploadFile, HTTPException, status, Query, Body
+from fastapi import FastAPI, File, UploadFile, HTTPException, status, Query, Body, Form
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
@@ -32,11 +32,18 @@ from backend.app.database import (
     get_analytics_summary,
     save_user_feedback,
     get_all_history_for_export,
-    get_error_cases_for_export
+    get_error_cases_for_export,
+    create_litter_report,
+    get_litter_reports,
+    get_litter_report_by_id,
+    update_litter_report_status,
+    upvote_litter_report,
+    get_litter_reports_stats
 )
 from backend.app.gradcam import generate_gradcam_overlay
 from backend.app.non_waste_detector import detect_non_waste_or_ood
 from backend.app.detector import detect_and_classify_multiple_objects
+from backend.app.news_crawler import sync_litter_news_and_social
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s")
 logger = logging.getLogger("waste_recognition_backend")
@@ -325,6 +332,9 @@ class RecyclingCenterItem(BaseModel):
     contact: Optional[str] = None
     opening_hours: Optional[str] = None
     notes: Optional[str] = None
+    latitude: Optional[float] = None
+    longitude: Optional[float] = None
+    maps_url: Optional[str] = None
 
 
 # =============================================================================
@@ -350,7 +360,7 @@ def load_model_from_checkpoint(ckpt_path: Path, device: torch.device):
         raise FileNotFoundError(f"Checkpoint file not found at: {ckpt_path}")
 
     checkpoint = torch.load(ckpt_path, map_location=device)
-    target_classes = checkpoint.get("target_classes", ["plastic", "paper", "metal", "glass", "organic", "other"])
+    target_classes = checkpoint.get("target_classes", ["plastic", "paper", "metal", "glass", "organic", "other", "medical"])
 
     model = models.mobilenet_v3_large(weights=None)
     in_features = model.classifier[3].in_features
@@ -380,7 +390,7 @@ async def lifespan(app: FastAPI):
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     app.state.device = str(device)
     app.state.model = None
-    app.state.classes = ["plastic", "paper", "metal", "glass", "organic", "other"]
+    app.state.classes = ["plastic", "paper", "metal", "glass", "organic", "other", "medical"]
     app.state.model_loaded = False
     app.state.model_error = None
 
@@ -1019,7 +1029,7 @@ def process_multi_object_detection_bytes(
             image=pil_image,
             classifier_model=app.state.model,
             classifier_transform=app.state.transform,
-            target_classes=getattr(app.state, "classes", ["plastic", "paper", "metal", "glass", "organic", "other"]),
+            target_classes=getattr(app.state, "classes", ["plastic", "paper", "metal", "glass", "organic", "other", "medical"]),
             recommendations_db=RECOMMENDATIONS,
             device=device
         )
@@ -1352,7 +1362,7 @@ def get_model_evaluation_metrics():
         "model_file_size": "17.0 MB (.pth)",
         "hardware_used": "NVIDIA GeForce RTX 3050 Laptop GPU (4GB VRAM)",
         "average_inference_latency_ms": 14.5,
-        "classes_order": ["plastic", "paper", "metal", "glass", "organic", "other"]
+        "classes_order": ["plastic", "paper", "metal", "glass", "organic", "other", "medical"]
     }
 
     return {
@@ -1373,10 +1383,17 @@ RECYCLING_CENTERS: List[Dict[str, Any]] = [
         "city": "Hà Nội",
         "district": "Cầu Giấy",
         "address": "Số 10 ngõ 84 Trần Thái Tông, Dịch Vọng Hậu, Cầu Giấy, Hà Nội",
-        "accepted_materials": ["paper", "metal", "plastic"],
+        "accepted_materials": [
+            "paper",
+            "metal",
+            "plastic"
+        ],
         "contact": "0987 654 321",
         "opening_hours": "08:30 - 17:30 (Thứ 2 - Thứ 7)",
-        "notes": "Chuyên thu gom và tái chế vỏ hộp sữa giấy, lon nhôm, nắp chai nhựa HDPE."
+        "notes": "Chuyên thu gom và tái chế vỏ hộp sữa giấy, lon nhôm, nắp chai nhựa HDPE.",
+        "latitude": 21.0315,
+        "longitude": 105.7876,
+        "maps_url": "https://www.google.com/maps/search/?api=1&query=S%E1%BB%91%2010%20ng%C3%B5%2084%20Tr%E1%BA%A7n%20Th%C3%A1i%20T%C3%B4ng%2C%20D%E1%BB%8Bch%20V%E1%BB%8Dng%20H%E1%BA%ADu%2C%20C%E1%BA%A7u%20Gi%E1%BA%A5y%2C%20H%C3%A0%20N%E1%BB%99i"
     },
     {
         "id": 2,
@@ -1384,10 +1401,19 @@ RECYCLING_CENTERS: List[Dict[str, Any]] = [
         "city": "Hà Nội",
         "district": "Cầu Giấy",
         "address": "Số 5 ngõ 106 Hoàng Quốc Việt, Nghĩa Đô, Cầu Giấy, Hà Nội",
-        "accepted_materials": ["plastic", "paper", "metal", "glass", "other"],
+        "accepted_materials": [
+            "plastic",
+            "paper",
+            "metal",
+            "glass",
+            "other"
+        ],
         "contact": "0912 345 678",
         "opening_hours": "09:00 - 18:00 (Hàng ngày)",
-        "notes": "Tiếp nhận pin cũ, rác thải điện tử nhỏ, giấy báo cũ, chai lọ nhựa và thủy tinh."
+        "notes": "Tiếp nhận pin cũ, rác thải điện tử nhỏ, giấy báo cũ, chai lọ nhựa và thủy tinh.",
+        "latitude": 21.0471,
+        "longitude": 105.7958,
+        "maps_url": "https://www.google.com/maps/search/?api=1&query=S%E1%BB%91%205%20ng%C3%B5%20106%20Ho%C3%A0ng%20Qu%E1%BB%91c%20Vi%E1%BB%87t%2C%20Ngh%C4%A9a%20%C4%90%C3%B4%2C%20C%E1%BA%A7u%20Gi%E1%BA%A5y%2C%20H%C3%A0%20N%E1%BB%99i"
     },
     {
         "id": 3,
@@ -1395,10 +1421,15 @@ RECYCLING_CENTERS: List[Dict[str, Any]] = [
         "city": "Hà Nội",
         "district": "Hoàn Kiếm",
         "address": "Số 2 Cổ Tân, Tràng Tiền, Hoàn Kiếm, Hà Nội",
-        "accepted_materials": ["other"],
+        "accepted_materials": [
+            "other"
+        ],
         "contact": "024 3824 5555",
         "opening_hours": "08:00 - 17:00 (Thứ 2 - Thứ 6)",
-        "notes": "Thùng thu gom chuyên dụng cho pin cũ, bóng đèn huỳnh quang hỏng."
+        "notes": "Thùng thu gom chuyên dụng cho pin cũ, bóng đèn huỳnh quang hỏng theo chuẩn TCVN.",
+        "latitude": 21.0253,
+        "longitude": 105.856,
+        "maps_url": "https://www.google.com/maps/search/?api=1&query=S%E1%BB%91%202%20C%E1%BB%95%20T%C3%A2n%2C%20Tr%C3%A0ng%20Ti%E1%BB%81n%2C%20Ho%C3%A0n%20Ki%E1%BA%BFm%2C%20H%C3%A0%20N%E1%BB%99i"
     },
     {
         "id": 4,
@@ -1406,10 +1437,16 @@ RECYCLING_CENTERS: List[Dict[str, Any]] = [
         "city": "TP. Hồ Chí Minh",
         "district": "Quận 3",
         "address": "396/1 Lê Văn Sỹ, Phường 14, Quận 3, TP. Hồ Chí Minh",
-        "accepted_materials": ["plastic", "glass"],
+        "accepted_materials": [
+            "plastic",
+            "glass"
+        ],
         "contact": "0898 123 456",
         "opening_hours": "09:00 - 21:00 (Hàng ngày)",
-        "notes": "Chương trình đổi vỏ chai mỹ phẩm, chai nhựa sạch lấy quà tặng xanh."
+        "notes": "Chương trình đổi vỏ chai mỹ phẩm, chai nhựa sạch lấy quà tặng xanh.",
+        "latitude": 10.7912,
+        "longitude": 106.6781,
+        "maps_url": "https://www.google.com/maps/search/?api=1&query=396/1%20L%C3%AA%20V%C4%83n%20S%E1%BB%B9%2C%20Ph%C6%B0%E1%BB%9Dng%2014%2C%20Qu%E1%BA%ADn%203%2C%20TP.%20H%E1%BB%93%20Ch%C3%AD%20Minh"
     },
     {
         "id": 5,
@@ -1417,10 +1454,18 @@ RECYCLING_CENTERS: List[Dict[str, Any]] = [
         "city": "TP. Hồ Chí Minh",
         "district": "Gò Vấp",
         "address": "125/44 Lê Đức Thọ, Phường 17, Gò Vấp, TP. Hồ Chí Minh",
-        "accepted_materials": ["organic", "plastic", "paper", "metal"],
+        "accepted_materials": [
+            "organic",
+            "plastic",
+            "paper",
+            "metal"
+        ],
         "contact": "0909 888 999",
         "opening_hours": "07:30 - 18:00 (Hàng ngày)",
-        "notes": "Hệ thống thu gom rác hữu cơ ủ phân vi sinh và rác vô cơ tái chế công nghệ cao."
+        "notes": "Hệ thống thu gom rác hữu cơ ủ phân vi sinh và rác vô cơ tái chế công nghệ cao.",
+        "latitude": 10.8436,
+        "longitude": 106.6772,
+        "maps_url": "https://www.google.com/maps/search/?api=1&query=125/44%20L%C3%AA%20%C4%90%E1%BB%A9c%20Th%E1%BB%8D%2C%20Ph%C6%B0%E1%BB%9Dng%2017%2C%20G%C3%B2%20V%E1%BA%A5p%2C%20TP.%20H%E1%BB%93%20Ch%C3%AD%20Minh"
     },
     {
         "id": 6,
@@ -1428,56 +1473,332 @@ RECYCLING_CENTERS: List[Dict[str, Any]] = [
         "city": "TP. Hồ Chí Minh",
         "district": "Quận 1",
         "address": "189C Cống Quỳnh, Phường Nguyễn Cư Trinh, Quận 1, TP. Hồ Chí Minh",
-        "accepted_materials": ["other", "paper"],
+        "accepted_materials": [
+            "other",
+            "paper"
+        ],
         "contact": "028 3832 5283",
         "opening_hours": "08:00 - 22:00 (Hàng ngày)",
-        "notes": "Thùng thu hồi pin cũ và vỏ hộp sữa giấy đặt ngay lối vào sảnh chính."
+        "notes": "Thùng thu hồi pin cũ và vỏ hộp sữa giấy đặt ngay lối vào sảnh chính.",
+        "latitude": 10.7675,
+        "longitude": 106.6896,
+        "maps_url": "https://www.google.com/maps/search/?api=1&query=189C%20C%E1%BB%91ng%20Qu%E1%BB%B3nh%2C%20Ph%C6%B0%E1%BB%9Dng%20Nguy%E1%BB%85n%20C%C6%B0%20Trinh%2C%20Qu%E1%BA%ADn%201%2C%20TP.%20H%E1%BB%93%20Ch%C3%AD%20Minh"
     },
     {
         "id": 7,
+        "name": "Vietnam Recycles - Điểm Thu Hồi Rác Điện Tử & Pin Cũ (UBND Phường 9)",
+        "city": "TP. Hồ Chí Minh",
+        "district": "Quận 3",
+        "address": "82 Bà Huyện Thanh Quan, Phường 9, Quận 3, TP. Hồ Chí Minh",
+        "accepted_materials": [
+            "other",
+            "metal"
+        ],
+        "contact": "028 3930 7890",
+        "opening_hours": "08:00 - 17:00 (Thứ 2 - Thứ 6)",
+        "notes": "Trạm thu gom chính thức của Hiệp hội Tái chế Việt Nam: pin laptop, điện thoại, bo mạch cũ.",
+        "latitude": 10.7818,
+        "longitude": 106.6841,
+        "maps_url": "https://www.google.com/maps/search/?api=1&query=82%20B%C3%A0%20Huy%E1%BB%87n%20Thanh%20Quan%2C%20Ph%C6%B0%E1%BB%9Dng%209%2C%20Qu%E1%BA%ADn%203%2C%20TP.%20H%E1%BB%93%20Ch%C3%AD%20Minh"
+    },
+    {
+        "id": 8,
         "name": "Lagom Vietnam Cơ Sở Phía Nam",
         "city": "TP. Hồ Chí Minh",
         "district": "Quận 10",
         "address": "284/41/2 Lý Thường Kiệt, Phường 14, Quận 10, TP. Hồ Chí Minh",
-        "accepted_materials": ["paper", "metal", "plastic"],
+        "accepted_materials": [
+            "paper",
+            "metal",
+            "plastic"
+        ],
         "contact": "0934 567 890",
         "opening_hours": "08:30 - 17:30 (Thứ 2 - Thứ 7)",
-        "notes": "Trạm tái chế vỏ hộp giấy Tetrapak và nhựa sạch các loại."
+        "notes": "Trạm tái chế vỏ hộp giấy Tetrapak và nhựa sạch các loại.",
+        "latitude": 10.7719,
+        "longitude": 106.6575,
+        "maps_url": "https://www.google.com/maps/search/?api=1&query=284/41/2%20L%C3%BD%20Th%C6%B0%E1%BB%9Dng%20Ki%E1%BB%87t%2C%20Ph%C6%B0%E1%BB%9Dng%2014%2C%20Qu%E1%BA%ADn%2010%2C%20TP.%20H%E1%BB%93%20Ch%C3%AD%20Minh"
     },
     {
-        "id": 8,
+        "id": 9,
+        "name": "MM Mega Market An Phú - Trạm Thu Hồi Pin & Vỏ Lon Tự Động",
+        "city": "TP. Hồ Chí Minh",
+        "district": "TP. Thủ Đức",
+        "address": "Khu B, KĐT mới An Phú - An Khánh, TP. Thủ Đức, TP. Hồ Chí Minh",
+        "accepted_materials": [
+            "other",
+            "metal",
+            "plastic"
+        ],
+        "contact": "028 3740 6677",
+        "opening_hours": "06:00 - 22:00 (Hàng ngày)",
+        "notes": "Máy RVM tự động nhận vỏ lon nhôm, chai nhựa và thùng tiếp nhận pin đã qua sử dụng.",
+        "latitude": 10.8015,
+        "longitude": 106.741,
+        "maps_url": "https://www.google.com/maps/search/?api=1&query=Khu%20B%2C%20K%C4%90T%20m%E1%BB%9Bi%20An%20Ph%C3%BA%20-%20An%20Kh%C3%A1nh%2C%20TP.%20Th%E1%BB%A7%20%C4%90%E1%BB%A9c%2C%20TP.%20H%E1%BB%93%20Ch%C3%AD%20Minh"
+    },
+    {
+        "id": 10,
         "name": "Trung Tâm Dịch Vụ Môi Trường Đô Thị Đà Nẵng",
         "city": "Đà Nẵng",
         "district": "Hải Châu",
         "address": "471 Núi Thành, Hòa Cường Nam, Hải Châu, Đà Nẵng",
-        "accepted_materials": ["plastic", "paper", "metal", "glass", "other"],
+        "accepted_materials": [
+            "plastic",
+            "paper",
+            "metal",
+            "glass",
+            "other"
+        ],
         "contact": "0236 3622 222",
         "opening_hours": "07:30 - 17:00 (Thứ 2 - Thứ 6)",
-        "notes": "Điểm tập kết và phân loại rác tái chế & thiết bị điện tử gia dụng cũ."
+        "notes": "Điểm tập kết và phân loại rác tái chế & thiết bị điện tử gia dụng cũ.",
+        "latitude": 16.0375,
+        "longitude": 108.2195,
+        "maps_url": "https://www.google.com/maps/search/?api=1&query=471%20N%C3%BAi%20Th%C3%A0nh%2C%20H%C3%B2a%20C%C6%B0%E1%BB%9Dng%20Nam%2C%20H%E1%BA%A3i%20Ch%C3%A2u%2C%20%C4%90%C3%A0%20N%E1%BA%B5ng"
     },
     {
-        "id": 9,
+        "id": 11,
         "name": "Trạm Thu Gom Rác Tái Chế Cần Thơ Xanh",
         "city": "Cần Thơ",
         "district": "Ninh Kiều",
         "address": "Đường 30 Tháng 4, Phường Hưng Lợi, Ninh Kiều, Cần Thơ",
-        "accepted_materials": ["plastic", "paper", "metal"],
+        "accepted_materials": [
+            "plastic",
+            "paper",
+            "metal"
+        ],
         "contact": "0292 3838 838",
         "opening_hours": "08:00 - 17:00 (Thứ 2 - Thứ 7)",
-        "notes": "Tiếp nhận rác thải nhựa nông nghiệp, bao bì tái chế và kim loại."
+        "notes": "Tiếp nhận rác thải nhựa nông nghiệp, bao bì tái chế và kim loại.",
+        "latitude": 10.0248,
+        "longitude": 105.7682,
+        "maps_url": "https://www.google.com/maps/search/?api=1&query=%C4%90%C6%B0%E1%BB%9Dng%2030%20Th%C3%A1ng%204%2C%20Ph%C6%B0%E1%BB%9Dng%20H%C6%B0ng%20L%E1%BB%A3i%2C%20Ninh%20Ki%E1%BB%81u%2C%20C%E1%BA%A7n%20Th%C6%A1"
     }
 ]
 
 @app.get("/api/recycling-centers", response_model=List[RecyclingCenterItem], summary="Get Recycling & Disposal Centers Directory")
 def get_recycling_centers(
-    city: Optional[str] = Query(None, description="Lọc theo thành phố"),
-    material: Optional[str] = Query(None, description="Lọc theo vật liệu")
+    city: Optional[str] = Query(default=None, description="Lọc theo thành phố"),
+    material: Optional[str] = Query(default=None, description="Lọc theo vật liệu")
 ):
     results = RECYCLING_CENTERS
-    if city:
-        city_lower = city.lower()
+    if isinstance(city, str) and city.strip():
+        city_lower = city.strip().lower()
         results = [c for c in results if city_lower in c["city"].lower()]
-    if material:
-        mat_lower = material.lower()
+    if isinstance(material, str) and material.strip():
+        mat_lower = material.strip().lower()
         results = [c for c in results if mat_lower in [m.lower() for m in c["accepted_materials"]]]
     return results
+
+
+
+# ==============================================================================
+# SMART CITY CROWDSOURCED LITTER MAP ENDPOINTS
+# ==============================================================================
+
+class LitterReportStatusUpdate(BaseModel):
+    status: str = Field(..., description="Trạng thái mới: 'pending' | 'in_progress' | 'resolved'")
+    resolved_note: Optional[str] = Field(default=None, description="Ghi chú hoàn thành / xử lý")
+
+class LitterReportItem(BaseModel):
+    id: int
+    created_at: str
+    latitude: float
+    longitude: float
+    address: Optional[str] = None
+    description: Optional[str] = None
+    image_base64: Optional[str] = None
+    detected_waste_classes: List[str] = []
+    severity: str
+    status: str
+    resolved_at: Optional[str] = None
+    resolved_note: Optional[str] = None
+    upvotes: int
+    reported_by: Optional[str] = None
+    source_type: Optional[str] = "citizen"
+    source_name: Optional[str] = "Người dân"
+    source_url: Optional[str] = None
+    title: Optional[str] = None
+    distance_km: Optional[float] = None
+
+class LitterReportsStatsResponse(BaseModel):
+    total_reports: int
+    pending_reports: int
+    in_progress_reports: int
+    resolved_reports: int
+    critical_reports: int
+    resolution_rate: float
+
+
+@app.get("/api/litter-reports", response_model=List[LitterReportItem], summary="Get Crowdsourced Smart City Litter Reports")
+def api_get_litter_reports(
+    status: Optional[str] = Query(default=None, description="Lọc theo trạng thái ('pending', 'in_progress', 'resolved', 'all')"),
+    severity: Optional[str] = Query(default=None, description="Lọc theo mức độ ('critical', 'high', 'medium', 'low', 'all')"),
+    source_type: Optional[str] = Query(default=None, description="Lọc theo nguồn tin ('citizen', 'news', 'social', 'all')"),
+    user_lat: Optional[float] = Query(default=None, description="Vĩ độ GPS của người dùng để tính cự ly"),
+    user_lng: Optional[float] = Query(default=None, description="Kinh độ GPS của người dùng để tính cự ly"),
+    radius_km: Optional[float] = Query(default=None, description="Lọc điểm rác trong bán kính N km quanh GPS"),
+    sort_by: Optional[str] = Query(default=None, description="Sắp xếp ('distance', 'severity', 'created_at')"),
+    limit: int = Query(default=150, ge=1, le=500, description="Giới hạn số bản ghi")
+):
+    """Lấy danh sách các điểm nóng rác thải đô thị theo bộ lọc trạng thái, nguồn tin tức hoặc bán kính GPS."""
+    return get_litter_reports(
+        status=status,
+        severity=severity,
+        source_type=source_type,
+        user_lat=user_lat,
+        user_lng=user_lng,
+        radius_km=radius_km,
+        sort_by=sort_by,
+        limit=limit
+    )
+
+
+@app.get("/api/litter-reports/nearby", summary="Get Nearest Litter Hotspots around User GPS")
+def api_get_nearby_litter_reports(
+    lat: float = Query(..., description="Vĩ độ GPS của người dùng"),
+    lng: float = Query(..., description="Kinh độ GPS của người dùng"),
+    radius_km: float = Query(default=25.0, ge=0.5, le=500.0, description="Bán kính tìm kiếm (km)"),
+    limit: int = Query(default=20, ge=1, le=100)
+):
+    """Tìm kiếm nhanh các điểm nóng rác thải gần vị trí GPS của người dùng nhất."""
+    reports = get_litter_reports(
+        user_lat=lat,
+        user_lng=lng,
+        radius_km=radius_km,
+        sort_by="distance",
+        limit=limit
+    )
+    nearest_km = reports[0]["distance_km"] if reports else None
+    critical_nearby = sum(1 for r in reports if r.get("severity") == "critical")
+
+    return {
+        "user_location": {"latitude": lat, "longitude": lng},
+        "search_radius_km": radius_km,
+        "total_nearby": len(reports),
+        "nearest_distance_km": nearest_km,
+        "critical_count": critical_nearby,
+        "reports": reports
+    }
+
+
+@app.post("/api/litter-reports/sync-news", summary="Sync Litter Reports from News & Social Media")
+def api_sync_litter_news():
+    """Tự động quét và đồng bộ các tin tức phản ánh điểm rác, ô nhiễm từ báo chí và mạng xã hội."""
+    return sync_litter_news_and_social()
+
+
+@app.get("/api/litter-reports/stats", response_model=LitterReportsStatsResponse, summary="Get Litter Reports Summary Statistics")
+def api_get_litter_reports_stats():
+    """Lấy số liệu thống kê tổng hợp của bản đồ rác đô thị thông minh."""
+    return get_litter_reports_stats()
+
+
+@app.post("/api/litter-reports", response_model=Dict[str, Any], summary="Submit a Crowdsourced Litter Hotspot Report")
+async def api_create_litter_report(
+    latitude: float = Form(..., description="Vĩ độ GPS"),
+    longitude: float = Form(..., description="Kinh độ GPS"),
+    address: Optional[str] = Form(default=None, description="Địa chỉ hoặc mô tả vị trí"),
+    description: Optional[str] = Form(default=None, description="Mô tả bãi rác hoặc tình trạng"),
+    severity: Optional[str] = Form(default="medium", description="Mức độ nghiêm trọng ('low', 'medium', 'high', 'critical')"),
+    reported_by: Optional[str] = Form(default="Người dân", description="Tên người báo cáo"),
+    file: Optional[UploadFile] = File(default=None, description="Ảnh hiện trường bãi rác")
+):
+    """
+    Tiếp nhận báo cáo điểm nóng rác thải tự phát từ người dân:
+    - Lưu vị trí GPS, địa chỉ, mô tả.
+    - Tự động nén ảnh thumbnail để hiển thị trên bản đồ.
+    - Tự động dùng AI nhận diện chất liệu rác trong ảnh; nếu có rác y tế/nguy hại, tự động nâng cấp severity lên 'critical'.
+    """
+    image_thumb_b64 = None
+    detected_classes: List[str] = []
+
+    if file and file.filename:
+        try:
+            raw_bytes = await file.read()
+            pil_img = Image.open(io.BytesIO(raw_bytes)).convert("RGB")
+            
+            # Tạo thumbnail Base64 nhẹ (tối đa 480px)
+            thumb = pil_img.copy()
+            thumb.thumbnail((480, 480))
+            buf = io.BytesIO()
+            thumb.save(buf, format="JPEG", quality=75)
+            image_thumb_b64 = f"data:image/jpeg;base64,{base64.b64encode(buf.getvalue()).decode('utf-8')}"
+
+            # Tự động phân tích AI để xác định nhóm rác
+            if app.state.model is not None and app.state.transform is not None:
+                tensor = app.state.transform(pil_img).unsqueeze(0).to(app.state.device)
+                with torch.inference_mode():
+                    logits = app.state.model(tensor)
+                    probs = torch.softmax(logits, dim=1)[0].cpu().numpy()
+                
+                target_classes = getattr(app.state, "classes", ["plastic", "paper", "metal", "glass", "organic", "other", "medical"])
+                pred_idx = int(probs.argmax())
+                pred_class = target_classes[pred_idx]
+                detected_classes.append(pred_class)
+
+                # Kiểm tra thêm các nhãn xác suất đáng kể (> 0.20)
+                for c_name, p in zip(target_classes, probs):
+                    if p >= 0.20 and c_name not in detected_classes:
+                        detected_classes.append(c_name)
+
+                # Nếu AI phát hiện có rác y tế, tự động nâng cấp lên 'critical'
+                if "medical" in detected_classes:
+                    severity = "critical"
+        except Exception as e:
+            logger.warning(f"Error processing image for litter report: {e}")
+
+    report_payload = {
+        "latitude": latitude,
+        "longitude": longitude,
+        "address": address or "Vị trí người dân báo cáo",
+        "description": description or "Điểm rác thải phát sinh",
+        "severity": severity or "medium",
+        "reported_by": reported_by or "Người dân",
+        "image_base64": image_thumb_b64,
+        "detected_waste_classes": detected_classes,
+        "status": "pending",
+        "upvotes": 1
+    }
+
+    report_id = create_litter_report(report_payload)
+    return {
+        "success": True,
+        "report_id": report_id,
+        "severity": severity,
+        "detected_waste_classes": detected_classes,
+        "message": "Báo cáo điểm nóng rác thải đã được ghi nhận thành công! Bạn nhận được +50 Điểm Sinh Thái."
+    }
+
+
+@app.patch("/api/litter-reports/{report_id}/status", summary="Update Litter Report Status")
+def api_update_litter_status(
+    report_id: int,
+    payload: LitterReportStatusUpdate
+):
+    """Cập nhật trạng thái xử lý của điểm nóng rác thải ('pending', 'in_progress', 'resolved')."""
+    if payload.status not in ("pending", "in_progress", "resolved"):
+        raise HTTPException(status_code=400, detail="Trạng thái không hợp lệ (chỉ chấp nhận 'pending', 'in_progress', 'resolved').")
+    
+    success = update_litter_report_status(report_id, payload.status, payload.resolved_note)
+    if not success:
+        raise HTTPException(status_code=404, detail="Không tìm thấy điểm nóng rác thải với ID tương ứng.")
+    return {
+        "success": True,
+        "report_id": report_id,
+        "status": payload.status,
+        "message": f"Đã cập nhật trạng thái điểm rác #{report_id} thành '{payload.status}'."
+    }
+
+
+@app.post("/api/litter-reports/{report_id}/upvote", summary="Upvote a Litter Report")
+def api_upvote_litter_report(report_id: int):
+    """Người dân xác nhận (upvote) điểm nóng rác thải để cơ quan quản lý ưu tiên xử lý."""
+    new_votes = upvote_litter_report(report_id)
+    return {
+        "success": True,
+        "report_id": report_id,
+        "upvotes": new_votes,
+        "message": "Đã ghi nhận xác nhận của bạn cho điểm nóng này."
+    }
