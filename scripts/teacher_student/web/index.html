@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="vi"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Teacher–Student · Duyệt nhãn cục bộ</title><link rel="stylesheet" href="/assets/review.css"></head>
+<body><main>
+<header><p>AI Waste Classification · công cụ nội bộ</p><h1>Teacher–Student: kiểm duyệt nhãn</h1><p>Đề xuất AI không phải ground truth. Chỉ người kiểm duyệt được duyệt dữ liệu; không train hoặc gọi dịch vụ ngoài ở đây.</p><p id="session">Đang đọc workspace…</p></header>
+<p id="message" role="status"></p><p id="error" role="alert" hidden></p>
+<nav aria-label="Chọn mẫu"><button id="previous" type="button">Ảnh trước</button><label>Ảnh trong pilot <select id="item"></select></label><button id="next" type="button">Ảnh sau</button><span id="progress"></span></nav>
+<section aria-labelledby="image-title"><h2 id="image-title">Ảnh và các lớp bounding box</h2><p id="source"></p><p id="flags"></p>
+<div class="layers"><label><input id="show-original" type="checkbox" checked> Gốc (xanh dương)</label><label><input id="show-teacher" type="checkbox" checked> Teacher (cam)</label><label><input id="show-draft" type="checkbox" checked> Bản nháp (xanh lá)</label></div>
+<div class="image-frame"><img id="image" alt="Ảnh training đang kiểm duyệt"><svg id="overlay" aria-label="Box gốc, Teacher và bản nháp"></svg></div>
+<p>Nhấn box bản nháp hoặc dòng tương ứng để chọn. Sửa tọa độ trong bảng; thêm box bằng kéo trên ảnh sau khi chọn class. Tọa độ là pixel trên ảnh đã định hướng EXIF.</p>
+<div class="actions"><label>Class cho box mới <select id="new-class"></select></label><button id="draw" type="button" aria-pressed="false">Vẽ box mới</button><button id="delete" type="button">Xóa box đang chọn</button><button id="reset" type="button">Khôi phục nháp từ nhãn gốc</button></div>
+</section>
+<section><h2>Nhãn gốc và Teacher</h2><p id="teacher-state"></p><p id="comparison-note"></p><div class="table-wrap"><table><thead><tr><th>Nguồn / số</th><th>Class</th><th>Score</th><th>IoU với gốc</th><th>QA / thao tác</th></tr></thead><tbody id="comparison"></tbody></table></div></section>
+<section><h2>Bản nháp chỉnh sửa</h2><p>Nháp bắt đầu từ nhãn gốc, không tự chấp nhận Teacher. Score nhãn gốc/nhãn người sửa không được bịa thành confidence.</p><div class="table-wrap"><table><thead><tr><th>Chọn</th><th>Class</th><th>x1</th><th>y1</th><th>x2</th><th>y2</th><th>Nguồn</th></tr></thead><tbody id="draft"></tbody></table></div></section>
+<section><h2>Vấn đề cần kiểm tra</h2><div class="actions"><label>Loại vấn đề <select id="issue-type"><option value="wrong_class">Nghi sai class</option><option value="missing_object">Nghi bỏ sót vật thể</option><option value="bad_box">Box bất thường</option><option value="hazard_suspected">Nghi vật nguy hại — cần người có chuyên môn</option><option value="provenance">Provenance / quyền sử dụng</option><option value="other">Khác</option></select></label><button id="add-issue" type="button">Thêm vấn đề</button></div><div id="issues"></div></section>
+<section><h2>Kiểm duyệt</h2><p id="review-state"></p><label>Tên / mã người kiểm duyệt <input id="reviewer" maxlength="100" autocomplete="off"></label>
+<label>Ghi chú <textarea id="notes" rows="3"></textarea></label>
+<label>Căn cứ provenance / quyền sử dụng (URL, hồ sơ hoặc người xác minh) <textarea id="rights" rows="2"></textarea></label>
+<div class="checks"><label><input id="check-all" type="checkbox"> Đã xem toàn ảnh, kể cả vật thể chưa có box</label><label><input id="check-qa" type="checkbox"> Đã kiểm các dấu hiệu QA và đối chiếu nhãn gốc/Teacher nếu có</label><label><input id="check-provenance" type="checkbox"> Đã kiểm nguồn và quyền sử dụng, ghi căn cứ ở trên</label><label><input id="check-hazards" type="checkbox"> Đã xem nguy cơ; giữ hold nếu chưa đủ chuyên môn hoặc ngoài taxonomy</label></div>
+<div class="actions"><button id="save-draft" type="button">Lưu nháp</button><button id="hold" type="button">Giữ lại / cần xác minh</button><button id="reject" type="button">Loại khỏi pilot train</button><button id="approve" type="button">Duyệt nhãn để đủ điều kiện export</button><button id="reload" type="button">Tải lại nhãn đã lưu (bỏ thay đổi chưa lưu)</button></div>
+<p>Thay đổi sau duyệt phải duyệt lại. Import Teacher mới cũng hủy dấu duyệt cũ. Export chỉ qua CLI, chỉ lấy ảnh train đã duyệt; val/test nguồn không sửa.</p>
+</section><details><summary>Provenance và lịch sử revision</summary><pre id="provenance"></pre></details>
+</main><script type="module" src="/assets/review.js"></script></body></html>

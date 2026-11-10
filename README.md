@@ -2,6 +2,23 @@
 
 > **Capstone Project**: Hệ thống nhận diện rác thải và gợi ý tái chế dựa trên Trí tuệ Nhân tạo.
 
+## Trạng thái nhánh thử nghiệm — 10/11/2026
+
+- UI chính dùng YOLO chín **nhóm vật thể**, có bounding box và card; không tự suy
+  vật liệu, khả năng tái chế hoặc mức an toàn từ nhãn detector.
+- Sàng lọc pin thử nghiệm là luồng ảnh một vật riêng. Hướng dẫn nguy cơ dựa trên
+  khai báo của người dùng, không chẩn đoán lây nhiễm hay đo phóng xạ từ ảnh.
+- Pipeline Teacher–Student đã có audit, pilot/review, adapter local offline và
+  export chỉ nhận nhãn đã duyệt. Teacher chưa chạy; chưa train Student mới.
+- Model weights, dataset, database, review workspace và log không nằm trong Git.
+  Clone code không đồng nghĩa inference sẵn sàng; kiểm readiness từng capability.
+
+Đọc [trạng thái dự án](PROJECT_STATUS.md), [thiết lập local](docs/LOCAL_SETUP.md),
+[API contract](docs/API_CONTRACT.md) và
+[Teacher–Student pipeline](docs/TEACHER_STUDENT_PIPELINE.md).
+Các mô tả MobileNet/Grad-CAM, taxonomy sáu lớp và metrics bên dưới thuộc luồng
+legacy; không dùng làm kết quả đánh giá YOLO hiện tại. Không khôi phục MobileNet.
+
 ---
 
 ## 📌 Giới thiệu dự án (Project Overview)

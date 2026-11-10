@@ -12,9 +12,9 @@ from typing import Dict, Any, List, Optional, Tuple
 
 from fastapi import FastAPI, File, UploadFile, HTTPException, status, Query, Body, Form
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import StreamingResponse
+from fastapi.responses import StreamingResponse, JSONResponse
 from pydantic import BaseModel, Field
-from PIL import Image, UnidentifiedImageError
+from PIL import Image
 import numpy as np
 import torch
 import torch.nn as nn
@@ -44,13 +44,17 @@ from backend.app.gradcam import generate_gradcam_overlay
 from backend.app.non_waste_detector import detect_non_waste_or_ood
 from backend.app.detector import detect_and_classify_multiple_objects
 from backend.app.news_crawler import sync_litter_news_and_social
+from backend.app.safety_routes import router as safety_router
+from backend.app.yolo_routes import router as yolo_router
+from backend.app.image_input import decode_image, MAX_UPLOAD_SIZE_BYTES, ALLOWED_FORMATS
+from backend.app.model_status import (
+    CONTRACT_VERSION, CapabilityName, ModelCapability, ReadinessResponse, model_capabilities,
+)
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s")
 logger = logging.getLogger("waste_recognition_backend")
 
 # Constraints
-MAX_UPLOAD_SIZE_BYTES = 10 * 1024 * 1024  # 10 MB
-ALLOWED_FORMATS = {"JPEG", "JPG", "PNG", "WEBP"}
 IMAGENET_MEAN = [0.485, 0.456, 0.406]
 IMAGENET_STD = [0.229, 0.224, 0.225]
 
@@ -156,6 +160,7 @@ class ImageUrlRequest(BaseModel):
     image_url: str = Field(..., description="Đường dẫn URL công khai của hình ảnh rác thải cần phân loại")
 
 class BatchPredictionItem(BaseModel):
+    status_code: Optional[int] = None
     filename: str
     success: bool
     result: Optional[PredictionResponse] = None
@@ -311,6 +316,9 @@ class DashboardAnalyticsResponse(BaseModel):
     )
 
 class HealthResponse(BaseModel):
+    contract_version: str = CONTRACT_VERSION
+    service_alive: bool = True
+    capabilities: Dict[str, ModelCapability] = Field(default_factory=dict)
     status: str
     service: str
     version: str
@@ -323,6 +331,8 @@ class HealthResponse(BaseModel):
     error: Optional[str] = None
 
 class RecyclingCenterItem(BaseModel):
+    verification_status: str = "unverified_legacy_entry"
+    acceptance_confirmed_current: bool = False
     id: int
     name: str
     city: str
@@ -442,14 +452,19 @@ app.add_middleware(
 )
 
 
+app.include_router(safety_router)
+app.include_router(yolo_router)
+
 @app.get("/api/health", response_model=HealthResponse, summary="Service & Model Health Check")
 async def health_check():
     """Kiểm tra tình trạng hoạt động của backend service và trạng thái nạp mô hình AI."""
-    is_loaded = getattr(app.state, "model_loaded", False)
+    capabilities = model_capabilities(app.state)
+    is_loaded = capabilities['legacy_classifier'].runtime_ready
     status_str = "ok" if is_loaded else "degraded"
     
     return HealthResponse(
         status=status_str,
+        capabilities=capabilities,
         service="waste-recognition-backend",
         version="0.4.0",
         ai_model_loaded=is_loaded,
@@ -460,6 +475,27 @@ async def health_check():
         uncertainty_threshold=UNCERTAINTY_THRESHOLD,
         error=getattr(app.state, "model_error", None)
     )
+
+
+@app.get('/api/readiness', response_model=ReadinessResponse,
+         responses={503: {'model': ReadinessResponse}}, summary='Readiness of one inference capability')
+def readiness(capability: CapabilityName = Query(...)):
+    model = model_capabilities(app.state)[capability]
+    response = ReadinessResponse(capability=capability, ready=model.runtime_ready, model=model)
+    return JSONResponse(status_code=200 if model.runtime_ready else 503, content=response.model_dump())
+
+
+def require_legacy_model():
+    if not getattr(app.state, 'model_loaded', False) or getattr(app.state, 'model', None) is None:
+        raise HTTPException(503, 'Model legacy chưa sẵn sàng; luồng này chưa được chuyển sang YOLO. Sàng lọc pin dùng /api/safety/scan.')
+
+
+def validate_legacy_image(contents: bytes, filename: str):
+    image, image_format = decode_image(contents, filename)
+    valid, reason, quality = assess_image_quality(image)
+    if not valid:
+        raise HTTPException(400, reason)
+    return image, image_format, quality
 
 
 def assess_image_quality(img: Image.Image) -> Tuple[bool, Optional[str], ImageQualityInfo]:
@@ -566,55 +602,11 @@ def process_waste_image_bytes(
     include_gradcam: bool = True
 ) -> PredictionResponse:
     """Hàm xử lý suy luận rác thải cốt lõi kèm phân tích thuộc tính cháy & tái chế."""
-    if not getattr(app.state, "model_loaded", False) or app.state.model is None:
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="AI inference engine is unavailable or failed to load. Please check server logs."
-        )
-
+    rgb_image, img_format, quality_info = validate_legacy_image(contents, filename)
+    require_legacy_model()
     file_size = len(contents)
-    if file_size == 0:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Tệp ảnh tải lên rỗng (0 bytes)."
-        )
-
-    if file_size > MAX_UPLOAD_SIZE_BYTES:
-        raise HTTPException(
-            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
-            detail=f"Dung lượng tệp vượt quá giới hạn cho phép {MAX_UPLOAD_SIZE_BYTES // (1024 * 1024)} MB."
-        )
-
-    try:
-        image_stream = io.BytesIO(contents)
-        pil_image = Image.open(image_stream)
-        pil_image.verify()
-        img_format = pil_image.format
-    except (UnidentifiedImageError, OSError, ValueError) as e:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Tệp '{filename}' không phải là hình ảnh hợp lệ hoặc bị hỏng."
-        )
-
-    if not img_format or img_format.upper() not in ALLOWED_FORMATS:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Định dạng ảnh '{img_format}' không được hỗ trợ. Hỗ trợ: JPEG, PNG, WebP."
-        )
-
-    image_stream.seek(0)
-    with Image.open(image_stream) as img:
-        img_dimensions = {"width": img.width, "height": img.height}
-        rgb_image = img.convert("RGB")
-
-        is_valid, reject_reason, quality_info = assess_image_quality(rgb_image)
-        if not is_valid:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=reject_reason
-            )
-
-        tensor_input = app.state.transform(rgb_image).unsqueeze(0)
+    img_dimensions = {"width": rgb_image.width, "height": rgb_image.height}
+    tensor_input = app.state.transform(rgb_image).unsqueeze(0)
 
     device = torch.device(app.state.device)
     tensor_input = tensor_input.to(device)
@@ -876,12 +868,15 @@ async def predict_waste(
         )
 
     try:
-        contents = await file.read()
+        contents = await file.read(MAX_UPLOAD_SIZE_BYTES + 1)
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Lỗi khi đọc luồng tệp tải lên: {e}"
         )
+
+    finally:
+        await file.close()
 
     return process_waste_image_bytes(
         contents=contents,
@@ -961,19 +956,21 @@ async def predict_waste_batch(
 
     for file in files:
         try:
-            contents = await file.read()
+            contents = await file.read(MAX_UPLOAD_SIZE_BYTES + 1)
             res = process_waste_image_bytes(
                 contents=contents,
                 filename=file.filename or "unknown.jpg",
                 content_type=file.content_type,
                 include_gradcam=include_gradcam
             )
-            items.append(BatchPredictionItem(filename=file.filename or "unknown.jpg", success=True, result=res))
+            items.append(BatchPredictionItem(filename=file.filename or "unknown.jpg", success=True, result=res, status_code=200))
             success_count += 1
         except HTTPException as he:
-            items.append(BatchPredictionItem(filename=file.filename or "unknown.jpg", success=False, error=he.detail))
+            items.append(BatchPredictionItem(filename=file.filename or "unknown.jpg", success=False, error=he.detail, status_code=he.status_code))
         except Exception as e:
-            items.append(BatchPredictionItem(filename=file.filename or "unknown.jpg", success=False, error=str(e)))
+            items.append(BatchPredictionItem(filename=file.filename or "unknown.jpg", success=False, error=str(e), status_code=500))
+        finally:
+            await file.close()
 
     return BatchPredictionResponse(
         total=len(files),
@@ -988,37 +985,8 @@ def process_multi_object_detection_bytes(
     contents: bytes,
     filename: str
 ) -> MultiObjectDetectionResponse:
-    if not getattr(app.state, "model_loaded", False) or app.state.model is None:
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="AI inference engine is unavailable or failed to load. Please check server logs."
-        )
-
-    file_size = len(contents)
-    if file_size == 0:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Tệp ảnh tải lên rỗng (0 bytes)."
-        )
-
-    if file_size > MAX_UPLOAD_SIZE_BYTES:
-        raise HTTPException(
-            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
-            detail=f"Dung lượng tệp vượt quá giới hạn cho phép {MAX_UPLOAD_SIZE_BYTES // (1024 * 1024)} MB."
-        )
-
-    try:
-        image_stream = io.BytesIO(contents)
-        pil_image = Image.open(image_stream)
-        pil_image.verify()
-    except (UnidentifiedImageError, OSError, ValueError) as e:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Tệp không phải định dạng hình ảnh hợp lệ: {e}"
-        )
-
-    image_stream.seek(0)
-    pil_image = Image.open(image_stream).convert("RGB")
+    pil_image, _, _ = validate_legacy_image(contents, filename)
+    require_legacy_model()
 
     import time
     t0 = time.time()
@@ -1066,12 +1034,15 @@ async def detect_multi_waste(
             detail="Không có tệp ảnh nào được đính kèm."
         )
     try:
-        contents = await file.read()
+        contents = await file.read(MAX_UPLOAD_SIZE_BYTES + 1)
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Lỗi khi đọc luồng tệp tải lên: {e}"
         )
+
+    finally:
+        await file.close()
 
     return process_multi_object_detection_bytes(
         contents=contents,
@@ -1101,6 +1072,8 @@ async def detect_multi_waste_url(
                     status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
                     detail="Ảnh từ URL vượt quá dung lượng tối đa 10 MB."
                 )
+    except HTTPException:
+        raise
     except Exception as net_err:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,

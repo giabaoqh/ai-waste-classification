@@ -177,7 +177,12 @@ class TestApiAnalyticsIntegration(unittest.TestCase):
             self.assertIn("disclaimer", data)
 
             # Kiểm tra tuyên bố minh bạch
-            self.assertIn("KHÔNG đại diện", data["disclaimer"])
+            # The API must communicate the limitation; capitalization is not a contract.
+            disclaimer = data['disclaimer'].casefold()
+            self.assertTrue('không đồng nghĩa' in disclaimer or 'không đại diện' in disclaimer)
+            self.assertIn('tái chế', disclaimer)
+            self.assertNotIn('carbon_saved_kg', data)
+            self.assertNotIn('weight_recycled_kg', data)
 
     def test_api_dashboard_date_filter_query(self):
         """Kiểm tra truyền tham số start_date và end_date qua API."""

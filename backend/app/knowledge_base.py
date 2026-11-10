@@ -15,6 +15,7 @@ Key Design Principles:
 
 import json
 import logging
+import re
 from pathlib import Path
 from typing import Dict, Any, List, Optional
 
@@ -67,22 +68,28 @@ def detect_hazardous_or_special_override(
 
     # 1. Batteries / Accumulators (CRITICAL HAZARD)
     battery_keywords = ["battery", "batteries", "pin", "accu", "ắc quy", "lithium", "alkaline"]
-    if any(k in check_str for k in battery_keywords):
+    def has_keyword(keywords):
+        # Filename hints are metadata, not visual evidence. Avoid pin/spinning,
+        # pill/pillow etc. Permit numbered filenames such as battery1.jpg.
+        return any(re.search(r"(?<!\w)" + re.escape(k.replace('-', ' ')) + r"(?=$|[\W\d])", check_str)
+                   for k in keywords)
+
+    if has_keyword(battery_keywords):
         return "battery"
 
     # 2. Electronic waste
     e_waste_keywords = ["cell phone", "laptop", "remote", "keyboard", "mouse", "điện thoại", "chuột", "bàn phím", "e-waste", "linh kiện"]
-    if any(k in check_str for k in e_waste_keywords):
+    if has_keyword(e_waste_keywords):
         return "e_waste"
 
     # 3. Composite cartons (Tetra Pak)
     carton_keywords = ["tetra pak", "vỏ hộp sữa", "hộp sữa", "milk carton"]
-    if any(k in check_str for k in carton_keywords):
+    if has_keyword(carton_keywords):
         return "composite_carton"
 
     # 4. Medical / Infectious waste (CRITICAL BIOHAZARD)
     medical_keywords = ["syringe", "needle", "kim tiêm", "bơm tiêm", "khẩu trang", "mask", "glove", "găng tay y tế", "medicine", "pill", "thuốc", "vỉ thuốc", "băng gạc", "rác y tế", "biohazard"]
-    if any(k in check_str for k in medical_keywords):
+    if has_keyword(medical_keywords):
         return "medical"
 
     return None
@@ -141,7 +148,7 @@ def get_disposal_guidance(
         "last_verified": entry.get("last_verified"),
         "disclaimer": kb_meta.get("disclaimer"),
         "is_override_applied": override_key is not None,
-        "override_reason": f"Phát hiện đặc trưng '{override_key}' yêu cầu xử lý đặc biệt thay vì nhóm '{waste_class}'." if override_key else None
+        "override_reason": f"Tên tệp/nhãn vật thể có gợi ý '{override_key}'; áp dụng hướng dẫn phòng ngừa thay nhóm '{waste_class}', chưa xác nhận nguy hại qua ảnh." if override_key else None
     }
 
     # If uncertain, add conditional caveat and safety confirmation warnings
@@ -166,7 +173,7 @@ def get_disposal_guidance(
             other_hazard_confirm = (
                 "⚠️ CẢNH BÁO XÁC NHẬN: Nhóm 'Rác khác' là danh mục hỗn hợp. "
                 "Nếu đồ vật có chứa pin, bình ắc quy hoặc bo mạch điện tử bên trong, "
-                "vui lòng tháo rời pin và linh kiện điện tử để chuyển giao cho điểm thu gom nguy hại/e-waste."
+                "không tự tháo pin hoặc linh kiện; liên hệ đơn vị chuyên trách để được hướng dẫn bàn giao."
             )
             if other_hazard_confirm not in result["tips"]:
                 result["tips"].insert(0, other_hazard_confirm)

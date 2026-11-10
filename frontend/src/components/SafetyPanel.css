@@ -1,0 +1,13 @@
+.safety-panel { max-width: 1100px; margin: 24px auto; padding: 20px; }
+.safety-panel p, .safety-panel li { line-height: 1.65; }
+.safety-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr)); gap: 20px; }
+.safety-panel fieldset { min-width: 0; border: 1px solid #94a3b8; border-radius: 12px; padding: 18px; }
+.safety-panel legend { font-weight: 700; padding: 0 6px; }
+.safety-panel label { display: block; margin: 14px 0; }
+.safety-panel input, .safety-panel select { display: block; box-sizing: border-box; width: 100%; margin-top: 6px; padding: 10px; border: 1px solid #94a3b8; border-radius: 6px; color: #172b3b; background: #fff; }
+.safety-panel button { padding: 10px 16px; border: 0; border-radius: 8px; background: #155e51; color: #fff; cursor: pointer; }
+.safety-panel button:disabled { opacity: .55; cursor: wait; }
+.safety-panel button:focus-visible, .safety-panel a:focus-visible { outline: 3px solid #f59e0b; outline-offset: 3px; }
+.safety-result { margin-top: 20px; border: 1px solid #94a3b8; padding: 20px; border-radius: 12px; overflow-wrap: anywhere; }
+.safety-alert { padding: 16px; border: 1px solid #b45309; background: #fff7ed; color: #7c2d12; border-radius: 8px; }
+.safety-source { display: inline-block; margin-right: 12px; }

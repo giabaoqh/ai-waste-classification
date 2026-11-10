@@ -1,0 +1,15 @@
+{
+  "version": "2026-11-10",
+  "cities": [{
+    "id": "da-nang", "aliases": ["da nang", "danang", "thanh pho da nang", "tp da nang"],
+    "name": "Đà Nẵng",
+    "battery_candidates": [
+      {"id": "dn-fec-1", "address": "108 Phan Châu Trinh, Đà Nẵng"},
+      {"id": "dn-fec-2", "address": "808 Ngô Quyền, Đà Nẵng"}
+    ],
+    "source_url": "https://fec.edu.vn/tin-tuc/thu-gom-pin-cu-bao-ve-moi-truong",
+    "source_checked_on": "2026-11-10",
+    "verification_status": "needs_confirmation",
+    "acceptance_confirmed_current": false
+  }]
+}

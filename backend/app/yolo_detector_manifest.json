@@ -1,0 +1,68 @@
+{
+  "manifest_version": 1,
+  "model_id": "yolo26n_multisource30_v1",
+  "architecture": "YOLO26n",
+  "task": "detect",
+  "taxonomy": "object_groups",
+  "checkpoint_sha256": "dc8f481be1668c960b78264db70c5f48c44d42b8fcb2fab93d23625532225efc",
+  "summary_sha256": "4b8aa49fcc845ce6432a1b188b7c767ee99e3daaf81d84c2ad3f053f5c556b9e",
+  "training_ultralytics_version": "8.4.208",
+  "imgsz": 640,
+  "class_mapping": [
+    {
+      "class_id": 0,
+      "class_name": "bottle_jar",
+      "label_vi": "Chai / lọ"
+    },
+    {
+      "class_id": 1,
+      "class_name": "can",
+      "label_vi": "Lon"
+    },
+    {
+      "class_id": 2,
+      "class_name": "cup",
+      "label_vi": "Cốc"
+    },
+    {
+      "class_id": 3,
+      "class_name": "carton",
+      "label_vi": "Hộp carton"
+    },
+    {
+      "class_id": 4,
+      "class_name": "cap_lid",
+      "label_vi": "Nắp"
+    },
+    {
+      "class_id": 5,
+      "class_name": "bag_film_wrapper",
+      "label_vi": "Túi / màng / vỏ gói"
+    },
+    {
+      "class_id": 6,
+      "class_name": "paper",
+      "label_vi": "Giấy"
+    },
+    {
+      "class_id": 7,
+      "class_name": "cigarette",
+      "label_vi": "Đầu lọc thuốc lá"
+    },
+    {
+      "class_id": 8,
+      "class_name": "other_litter",
+      "label_vi": "Vật thể rác khác"
+    }
+  ],
+  "dataset_yaml_sha256": "88e85848e96436000aa5d2a6c62b6d23b8210db7102c2415575366a47ca52a1a",
+  "mapping_verified_from": [
+    "checkpoint.names and detection head nc",
+    "pilot_summary.json per_class",
+    "dataset.yaml names (hash matched training summary)",
+    "scripts/prepare_taco_pilot.py CLASSES"
+  ],
+  "verified_on": "2026-11-10",
+  "experimental": true,
+  "production_ready": false
+}

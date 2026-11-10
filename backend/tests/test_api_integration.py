@@ -7,7 +7,7 @@ import unittest
 from pathlib import Path
 from PIL import Image
 
-PROJECT_ROOT = Path(r"D:\AI-Based Waste Recognition and Recycling Recommendation System")
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
 BASE_URL = "http://127.0.0.1:8000"
 
 
@@ -38,12 +38,20 @@ class TestApiIntegration(unittest.TestCase):
         with urllib.request.urlopen(req) as resp:
             self.assertEqual(resp.status, 200)
             data = json.loads(resp.read().decode("utf-8"))
-            self.assertEqual(data["status"], "ok")
-            self.assertTrue(data["ai_model_loaded"])
+            legacy = data['capabilities']['legacy_classifier']
+            self.assertTrue(data['service_alive'])
+            self.assertEqual(data['ai_model_loaded'], legacy['model_loaded'])
+            self.assertEqual(data['checkpoint_loaded'], legacy['runtime_ready'])
+            self.assertEqual(data['status'], 'ok' if legacy['runtime_ready'] else 'degraded')
+            self.assertEqual(set(data['capabilities']), {'legacy_classifier', 'yolo_detector', 'battery_classifier'})
+            with urllib.request.urlopen(f'{BASE_URL}/api/yolo/capabilities') as yolo_response:
+                yolo=json.loads(yolo_response.read())
+            self.assertTrue(data['capabilities']['yolo_detector']['integrated'])
+            self.assertEqual(data['capabilities']['yolo_detector']['runtime_ready'],yolo['runtime_ready'])
             self.assertEqual(data["model_architecture"], "mobilenet_v3_large")
             self.assertIn("uncertainty_threshold", data)
             self.assertAlmostEqual(data["uncertainty_threshold"], 0.65, delta=0.01)
-            self.assertEqual(len(data["target_classes"]), 6)
+            self.assertIsInstance(data['target_classes'], list)
 
     def test_predict_with_real_image(self):
         """Kiểm tra POST /api/predict với ảnh thật trả về Top-3 và phân bố xác suất chuẩn."""
@@ -84,7 +92,8 @@ class TestApiIntegration(unittest.TestCase):
             self.assertFalse(data["is_uncertain"])
 
         # Kiểm tra tính tương thích ngược với 6 lớp
-        self.assertEqual(len(data["probabilities"]), 6)
+        with urllib.request.urlopen(f'{BASE_URL}/api/health') as health:
+            self.assertEqual(set(data['probabilities']), set(json.loads(health.read())['target_classes']))
         prob_sum = sum(data["probabilities"].values())
         self.assertAlmostEqual(prob_sum, 1.0, delta=0.01)
         self.assertIn("predicted_class", data)

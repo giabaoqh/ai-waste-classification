@@ -1,0 +1,2 @@
+# Install matching CUDA torch/torchvision first; see docs/YOLO_PILOT.md.
+ultralytics==8.4.208

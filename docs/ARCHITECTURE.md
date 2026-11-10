@@ -1,5 +1,9 @@
 # System Architecture (ARCHITECTURE.md)
 
+> Tài liệu kiến trúc ban đầu. Thiết kế mở rộng đề xuất, giới hạn phần cứng và
+> hợp đồng dữ liệu đa tầng được ghi tại [AI_SYSTEM_DESIGN.md](AI_SYSTEM_DESIGN.md).
+> Các mô-đun trong thiết kế mở rộng chưa đồng nghĩa đã được triển khai.
+
 ## 1. Tổng quan Kiến trúc (System Overview)
 
 Hệ thống được thiết kế theo kiến trúc phân lớp (Layered Architecture), tách bạch rõ ràng giữa tầng hiển thị (Presentation), tầng nghiệp vụ / API (Backend), tầng tính toán Trí tuệ Nhân tạo (AI Service) và cơ sở tri thức (Knowledge Base).
@@ -74,6 +78,20 @@ Hệ thống được thiết kế theo kiến trúc phân lớp (Layered Archit
   - `tips`: Mẹo tái chế hoặc lưu ý an toàn.
 
 ---
+
+## Phần bổ sung thử nghiệm ngày 10/11/2026
+
+- Router `safety_routes.py`: sàng lọc hình dạng pin và hướng dẫn theo quan sát do
+  người dùng báo, tách khỏi contract MobileNet bảy nhãn và YOLO chín nhóm.
+- Adapter `battery_screen.py`: classifier thật, lazy load trên CPU, kiểm SHA-256
+  với báo cáo đánh giá; không lưu ảnh, không sinh kết quả khi thiếu checkpoint.
+- `safety_guidance.py` và registry `collection_contacts.json`: hướng dẫn có nguồn,
+  ứng xử theo tình trạng pin, không xác nhận nhiễm bệnh/bức xạ/an toàn từ RGB.
+- Tab `SafetyPanel.jsx`: hướng dẫn theo vật liệu và điểm pin tại Đà Nẵng còn cần
+  xác nhận tiếp nhận. Danh mục điểm thu gom cũ được đánh dấu chưa xác minh.
+
+Chi tiết và mục tiêu mở rộng: `docs/HAZARD_ROADMAP_DANANG.md`. Sơ đồ bên dưới là
+luồng classifier cũ; thiết bị máy này là RTX 4050, không phải RTX 3050 trong mô tả cũ.
 
 ## 3. Luồng Dữ Liệu Chi Tiết (Data Flow)
 

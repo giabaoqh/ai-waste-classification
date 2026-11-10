@@ -3,6 +3,8 @@ import EcoProfileModal from './components/EcoProfileModal';
 import { ClientQualityIndicator, BackendQualityCard } from './components/ImageQualityBadge';
 import PwaInstallBanner from './components/PwaInstallBanner';
 import SmartLitterMap from './components/SmartLitterMap';
+import SafetyPanel from './components/SafetyPanel';
+import YoloDetectionPanel from './components/YoloDetectionPanel';
 
 const getBackendUrl = () => {
   if (import.meta.env.VITE_BACKEND_URL) return import.meta.env.VITE_BACKEND_URL;
@@ -816,7 +818,7 @@ export default function App() {
           <span>Phân Loại Rác Thông Minh & Hướng Dẫn Tái Chế</span>
         </div>
         <h1>Hệ Thống Nhận Diện Rác Thải & Phân Tích Tái Chế</h1>
-        <p>Ứng dụng mạng nơ-ron MobileNetV3-Large, phân tích thuộc tính bắt cháy, mức độ tái chế và giải thích AI (Grad-CAM).</p>
+        <p>Nhận diện nhóm vật thể bằng YOLO — thử nghiệm. Vật liệu, khả năng tái chế và nguy cơ cần được xác minh riêng.</p>
       </header>
 
       {/* Navigation Tabs (5 Tabs) */}
@@ -836,7 +838,7 @@ export default function App() {
             onClick={() => handleTabChange('detect')}
           >
             <span className="tab-icon">🎯</span>
-            <span>Phát Hiện Đa Vật Thể</span>
+            <span>Đa Vật Thể (legacy)</span>
           </button>
 
           <button
@@ -882,6 +884,9 @@ export default function App() {
             <span className="tab-icon">🏙️</span>
             <span>Bản Đồ Rác Đô Thị</span>
           </button>
+          <button type="button" className={`tab-btn ${activeTab === 'safety' ? 'active' : ''}`} onClick={() => handleTabChange('safety')}>
+            <span>Pin và rác có nguy cơ</span>
+          </button>
         </nav>
       </div>
 
@@ -894,7 +899,10 @@ export default function App() {
       {/* ==================================================================== */}
       {/* TAB 1: PREDICTION VIEW                                              */}
       {/* ==================================================================== */}
-      {activeTab === 'predict' && (
+      {activeTab === 'safety' && <SafetyPanel backendUrl={BACKEND_URL} />}
+
+      {activeTab === 'predict' && <YoloDetectionPanel backendUrl={BACKEND_URL} onOpenSafety={() => handleTabChange('safety')} />}
+      {activeTab === 'legacy_predict' && (
         <div className="main-grid">
           {/* Left Column: Input Selection */}
           <div className="card">
@@ -1609,7 +1617,8 @@ export default function App() {
       {/* TAB: MULTI-OBJECT DETECTION VIEW                                    */}
       {/* ==================================================================== */}
       {activeTab === 'detect' && (
-        <div className="detect-tab-container">
+        <div className="detect-tab-container">
+            <p className="yolo-alert">Luồng đa vật thể cũ phụ thuộc model legacy, tách biệt với YOLO. Dùng tab Phân Loại Rác để nhận diện nhiều vật thể bằng YOLO thử nghiệm.</p>
           <div className="detect-header-card">
             <div className="detect-header-title">
               <span style={{ fontSize: '2rem' }}>🎯</span>
@@ -2439,7 +2448,8 @@ export default function App() {
       {/* TAB 5: RECYCLING CENTERS DIRECTORY                                  */}
       {/* ==================================================================== */}
       {activeTab === 'centers' && (
-        <div className="recycling-container">
+        <div className="recycling-container">
+          <p role="note">Danh mục tham khảo chưa xác minh hoạt động và loại rác tiếp nhận hiện tại. Liên hệ trước khi mang tới. Với pin tại Đà Nẵng, xem mục “Pin và rác có nguy cơ”; không mặc định các điểm này nhận pin hỏng, rác y tế hoặc vật nghi phóng xạ.</p>
           <div className="recycling-filter-bar">
             <select
               className="filter-select"
